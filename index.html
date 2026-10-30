@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Taskbar Pet</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <div id="bubble" class="speech" role="status" hidden></div>
+    <section id="panel" class="speech" aria-label="Your cat" hidden>
+      <div class="tabs" role="tablist" aria-label="Mode">
+        <button id="tab-todo" type="button" role="tab" aria-selected="true">To-dos</button>
+        <button id="tab-notes" type="button" role="tab" aria-selected="false">Notes</button>
+        <button id="tab-focus" type="button" role="tab" aria-selected="false">Focus</button>
+      </div>
+      <div id="todo-view" role="tabpanel" aria-labelledby="tab-todo">
+        <p id="say"></p>
+        <ul id="list"></ul>
+        <form id="add">
+          <input id="add-title" placeholder="Add a to-do…" aria-label="New to-do" maxlength="120" required />
+          <input id="add-due" type="datetime-local" aria-label="Due" required />
+          <button aria-label="Add to-do">+</button>
+        </form>
+      </div>
+      <div id="notes-view" role="tabpanel" aria-labelledby="tab-notes" hidden>
+        <div id="notes-menu">
+          <ul id="notes-list" aria-label="Your notes"></ul>
+          <p id="notes-empty" hidden>No notes yet. Press + to start one.</p>
+          <button id="note-new" type="button" aria-label="New note">+</button>
+        </div>
+        <div id="note-editor" hidden>
+          <div class="editor-bar">
+            <button id="note-back" type="button">‹ Notes</button>
+            <span id="notes-status" role="status"></span>
+            <button id="note-save" type="button">Save</button>
+          </div>
+          <textarea id="notes" aria-label="Note" placeholder="Type here, or press the mic and talk. I'll write it down."></textarea>
+          <div class="notes-bar">
+            <button id="mic" type="button" aria-pressed="false" aria-label="Dictate" title="Talk and I'll write it down">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <span id="mic-status" role="status"></span>
+          </div>
+        </div>
+      </div>
+      <div id="focus-view" role="tabpanel" aria-labelledby="tab-focus" hidden>
+        <p id="focus-say"></p>
+        <div id="focus-clock" role="timer">25:00</div>
+        <div class="focus-lengths" role="group" aria-label="Focus length">
+          <button type="button" data-min="25" aria-pressed="true">25 min</button>
+          <button type="button" data-min="50" aria-pressed="false">50 min</button>
+        </div>
+        <div class="focus-actions">
+          <button id="focus-start" type="button">Start</button>
+          <button id="focus-stop" type="button" hidden>Stop</button>
+        </div>
+      </div>
+    </section>
+    <div id="cat" role="button" tabindex="0" aria-label="Wake the cat"></div>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "updated": "2026-10-29T13:00:00Z",
+  "tasks": [
+    {
+      "id": "sam-coffee",
+      "title": "Coffee with Sam",
+      "due": "2026-11-16T10:00:00Z",
+      "remind": ["1d", "1h"],
+      "priority": "high",
+      "done": false
+    },
+    {
+      "id": "essay",
+      "title": "Hand in the essay",
+      "due": "2026-11-27T17:00:00Z",
+      "remind": ["7d", "1d"],
+      "priority": "high",
+      "done": false
+    }
+  ]
+}

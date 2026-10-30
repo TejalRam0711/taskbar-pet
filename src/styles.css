@@ -1,0 +1,681 @@
+:root {
+  --fur: #19181f;
+  --fur-far: #0f0e14;
+  --rim: #4b4962;
+  --eye: #f2c766;
+  --eye-ring: #b8862e;
+  --ear: #4e4a6e;
+  --nose: #8a5c6c;
+  --whisker: #b8b5c8;
+  --ink: #2a2730;
+  --muted: #77727f;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font: 13px/1.35 "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  user-select: none;
+}
+
+/* ---------- the cat ---------- */
+
+#cat {
+  position: fixed;
+  left: 100px; /* main.ts moves it when the window grows */
+  bottom: 0;
+  width: 100px;
+  height: 67px;
+  cursor: pointer;
+  outline: none;
+}
+
+#cat:focus-visible {
+  outline: 2px solid var(--eye);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+#cat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  /* black cat: a faint rim so it shows on a dark wallpaper; light-furred skins: a thin dark outline */
+  filter: var(--pet-outline, drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.55)));
+}
+
+/* ---------- skins (shapes and markings in skins.ts) ---------- */
+
+.cat.skin-orange {
+  --fur: #ef9d52; --fur-far: #d8853c; --rim: #c9752d; --ear: #f6b9a8; --eye: #a9d46c; --eye-ring: #6e9a3a;
+  --nose: #e8889a; --whisker: #8d5f3e; --stripe: #cf6f24; --belly: #fff0dc; --paw: #fff0dc; --shut: #6b4024;
+  --pet-outline: drop-shadow(0.6px 0 0 #6b3c18) drop-shadow(-0.6px 0 0 #6b3c18) drop-shadow(0 0.6px 0 #6b3c18) drop-shadow(0 -0.6px 0 #6b3c18);
+}
+
+.cat.skin-tabby {
+  --fur: #a8967f; --fur-far: #8f7d67; --rim: #7f6c56; --ear: #eab4a9; --eye: #a6d36f; --eye-ring: #648f3c;
+  --nose: #d98a8f; --whisker: #4d4035; --stripe: #54443a; --belly: #f7f1e8; --paw: #f7f1e8; --shut: #3f3329;
+  --pet-outline: drop-shadow(0.6px 0 0 #3d3128) drop-shadow(-0.6px 0 0 #3d3128) drop-shadow(0 0.6px 0 #3d3128) drop-shadow(0 -0.6px 0 #3d3128);
+}
+
+.cat.skin-bunny {
+  --fur: #ece5da; --fur-far: #d8cfc2; --rim: #c3b6a6; --ear: #f6bccb; --eye: #4b3226; --eye-ring: #2a1b14;
+  --nose: #f08aa0; --whisker: #9d9184; --belly: #fbf8f3; --paw: #fbf8f3; --shut: #6b5a4c;
+  --pet-outline: drop-shadow(0.6px 0 0 #7a6858) drop-shadow(-0.6px 0 0 #7a6858) drop-shadow(0 0.6px 0 #7a6858) drop-shadow(0 -0.6px 0 #7a6858);
+}
+
+/* bunny: round dark eyes, ears folded back while it sleeps, and it hops: front legs together, then back legs */
+.cat.skin-bunny .pupil { rx: 2.6px; ry: 3.3px; }
+.cat.skin-bunny .ears { transform-origin: 0 -10px; transition: transform 0.6s ease-out; }
+.cat.skin-bunny.sleep .ears { transform: rotate(-62deg); }
+.cat.skin-bunny.walk .stand { animation: hop 0.62s infinite; }
+.cat.skin-bunny.walk :is(.leg-nf, .leg-ff),
+.cat.skin-bunny.walk :is(.leg-nf, .leg-ff) .shin { animation-delay: 0s; }
+.cat.skin-bunny.walk :is(.leg-nb, .leg-fb),
+.cat.skin-bunny.walk :is(.leg-nb, .leg-fb) .shin { animation-delay: -0.31s; }
+
+.cat .fur { fill: var(--fur); }
+.cat .rim { fill: none; stroke: var(--rim); stroke-width: 1; stroke-linecap: round; opacity: 0.8; }
+.cat .rim.faint { opacity: 0.45; stroke-width: 0.6; }
+.cat .tail,
+.cat .leg path,
+.cat :is(.legs-sit, .legs-hang, .arms-up) path { fill: none; stroke: var(--fur); stroke-linecap: round; stroke-linejoin: round; }
+.cat .tail { stroke-width: 3; }
+.cat .leg path { stroke-width: 4; }
+.cat :is(.legs-sit, .legs-hang, .arms-up) path { stroke-width: 3.6; }
+.cat .leg-fb path,
+.cat .leg-ff path { stroke: var(--fur-far); stroke-width: 3.7; }
+.cat .leg-fb ellipse,
+.cat .leg-ff ellipse { fill: var(--fur-far); }
+.cat .ear-in { fill: var(--ear); }
+.cat .iris { fill: var(--eye); stroke: var(--eye-ring); stroke-width: 0.5; }
+.cat .pupil { fill: #0b0a0e; }
+.cat .glint { fill: #fff; }
+.cat .eyes-shut { fill: none; stroke: var(--shut, #8d8a9c); stroke-width: 0.9; stroke-linecap: round; }
+.cat .paw { fill: var(--paw, var(--fur)); }
+.cat .belly,
+.cat .puff { fill: var(--belly); }
+.cat .stripe { fill: none; stroke: var(--stripe); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.cat .tail.band { stroke: var(--stripe); stroke-dasharray: 2.6 3.4; }
+.cat .nose { fill: var(--nose); }
+.cat .mouth { fill: none; stroke: #6d6a7c; stroke-width: 0.6; stroke-linecap: round; }
+.cat .mouth-open { fill: #3a1f2a; }
+.cat .whiskers { stroke: var(--whisker); stroke-width: 0.45; stroke-linecap: round; opacity: 0.7; }
+.cat .ball circle { fill: #c0564b; }
+.cat .ball path,
+.cat .strand { fill: none; stroke: #8f3a33; stroke-width: 0.8; stroke-linecap: round; }
+.cat .blush { fill: #e8798c; opacity: 0.45; }
+.cat .specs { fill: rgba(255, 255, 255, 0.1); stroke: #e6c879; stroke-width: 0.7; stroke-linecap: round; }
+.cat .shirt,
+.cat .collar { fill: #f6f4fb; stroke: #b9b5c9; stroke-width: 0.4; stroke-linejoin: round; }
+.cat .tie { fill: #d24b4b; }
+.cat .paper { fill: #fffdf6; stroke: #cfcadb; stroke-width: 0.4; }
+.cat .scrawl { fill: none; stroke: #8d8a9c; stroke-width: 0.5; stroke-linecap: round; }
+.cat .arm { fill: none; stroke: var(--fur); stroke-width: 3.4; stroke-linecap: round; }
+.cat .pencil { stroke: #f2b632; stroke-width: 1.3; stroke-linecap: round; }
+.cat .pencil-tip { stroke: #3a3540; stroke-width: 0.8; stroke-linecap: round; }
+.cat .bang { font: bold 13px "Segoe UI", sans-serif; fill: #e5484d; }
+.cat .heart { fill: #e8798c; }
+
+/* Which parts show in which state. Lying rig: sleep, awake. Sitting rig: sit. Standing rig: walk, play. */
+.cat .stand,
+.cat .sitting,
+.cat .specs,
+.cat .outfit,
+.cat .desk,
+.cat.notes .leg-r,
+.cat .yarn,
+.cat .legs-hang,
+.cat .arms-up,
+.cat .hug,
+.cat .eyes-shut,
+.cat .mouth-open,
+.cat .bang,
+.cat .heart { display: none; }
+.cat.walk .lie,
+.cat.play .lie,
+.cat.sit .lie { display: none; }
+.cat.sit .sitting,
+.cat.notes .specs,
+.cat.notes .outfit,
+.cat.notes .desk,
+.cat.walk .stand,
+.cat.play .stand,
+.cat.play .yarn,
+.cat.sleep .eyes-shut,
+.cat.happy .eyes-shut,
+.cat.urgent .bang,
+.cat.happy .heart { display: inline; }
+.cat.sleep .eyes-open,
+.cat.happy .eyes-open { display: none; }
+.cat.talking .mouth { display: none; }
+.cat.talking .mouth-open { display: inline; }
+.cat.left .flip { transform: scaleX(-1); transform-origin: 60px 0; }
+
+/* Long-lived poses are switched by the 2.5 fps tick in cat.ts (data-breath, data-z, data-blink, data-twitch,
+   data-hop), so they cost a repaint only when they change. Short actions use CSS animations stepped at ~12 fps,
+   like hand-drawn animation "on twos". */
+
+/* lying down (from sitting or walking): drop into the loaf, then the head goes down */
+.cat.lying-down .lie { transform-origin: 62px 78px; animation: lie-down 0.45s steps(5); }
+
+/* sleep: head down on the paws, slow breathing, a "z z z" bubble that fills one z at a time */
+.cat .head-lie { transition: transform 0.6s ease-out; }
+.cat.sleep .head-lie { transform: translate(-1px, 15px) rotate(15deg); }
+.cat .body-lie { transform-origin: 60px 78px; }
+.cat.sleep[data-breath="1"] .body-lie { transform: scaleY(1.04); }
+
+.zzz-bubble {
+  display: none;
+  position: absolute;
+  left: 74px;
+  top: -2px;
+  padding: 1px 7px 3px;
+  background: #fff;
+  border: 2px solid var(--fur);
+  border-radius: 12px;
+  box-shadow: 2px 2px 0 rgba(25, 24, 31, 0.22);
+  font: bold 11px/1.1 "Segoe Print", "Comic Sans MS", cursive;
+  color: var(--fur);
+  white-space: nowrap;
+  transform-origin: 0 100%;
+}
+/* thought-bubble dots trailing down to the head */
+.zzz-bubble::before,
+.zzz-bubble::after {
+  content: "";
+  position: absolute;
+  background: #fff;
+  border: 2px solid var(--fur);
+  border-radius: 50%;
+}
+.zzz-bubble::before { left: -4px; bottom: -8px; width: 6px; height: 6px; }
+.zzz-bubble::after { left: -10px; bottom: -14px; width: 3px; height: 3px; }
+.zzz-bubble span { display: inline-block; margin: 0 1.5px; visibility: hidden; }
+.zzz-bubble span:nth-child(2) { font-size: 12.5px; }
+.zzz-bubble span:nth-child(3) { font-size: 14px; }
+.cat.sleep:not(.lying-down) + .zzz-bubble { display: block; }
+.cat[data-breath="1"] + .zzz-bubble { transform: scale(1.06); }
+.zzz-bubble span:nth-child(1),
+.cat:is([data-z="1"], [data-z="2"], [data-z="3"]) + .zzz-bubble span:nth-child(2),
+.cat:is([data-z="2"], [data-z="3"]) + .zzz-bubble span:nth-child(3) { visibility: visible; }
+
+/* awake, getting up and talking: blink, tail tip twitch, rise from lying to sitting, mouth moving */
+.cat .eyes-open { transform-box: fill-box; transform-origin: center; }
+.cat[data-blink="1"] .eyes-open { transform: scaleY(0.1); }
+.cat[data-twitch="1"] .tail-lie { d: path("M36 73 C26 79 42 81 58 80 C65 79.5 69 77 72 73.5"); }
+.cat[data-twitch="1"] .tail-sit { d: path("M70 74 C60 76 57 70 60.5 64 C63 59.5 60.5 54 57.5 53.5"); }
+.cat.sit .sitting { transform-origin: 80px 78px; animation: get-up 0.45s steps(5); }
+.cat.sit .eyes-open { animation: open-eyes 0.6s steps(6); }
+.cat .mouth-open { transform-box: fill-box; transform-origin: center; animation: talk 0.25s steps(2) infinite alternate; }
+.cat.urgent.awake[data-hop="1"] .lie { transform: translateY(-3px); }
+.cat.urgent[data-hop="1"] .bang { opacity: 0.3; }
+.cat.happy .heart { animation: rise 2s steps(16) forwards; }
+
+/* picked up: lifted a little, dangling from the scruff with a slow swing (cat.ts), tail hanging, a surprised "o";
+   put down: a squash as it lands */
+.cat { transition: transform 0.1s ease-in; }
+.cat.carried { transform: translateY(-14px); }
+.cat.carried .sitting { transform-origin: 80px 47px; animation: dangle 1.6s infinite; }
+.cat.carried .tail-sit { d: path("M70 74 C68.5 79 70.5 83 68.5 88"); }
+.cat.carried .mouth { display: none; }
+.cat.carried :is(.mouth-open, .legs-hang) { display: inline; animation: none; }
+.cat.landed .sitting { transform-origin: 80px 78px; animation: land 0.35s steps(5); }
+
+/* something dragged over it: up on tiptoe, paws grabbing at it in turn (cat.ts), eyes up, mouth open;
+   dropped: it hugs the note to its chest */
+.cat.reaching .arms-up,
+.cat.caught .hug { display: inline; }
+.cat:is(.reaching, .caught) .legs-sit { display: none; }
+.cat.reaching .sitting { transform-origin: 80px 78px; animation: tiptoe 0.5s infinite; }
+.cat.reaching :is(.arm-l, .arm-r) { animation: grab 0.5s infinite; }
+.cat .arm-l { transform-origin: 74.5px 55px; }
+.cat .arm-r { transform-origin: 85.5px 55px; }
+.cat.reaching :is(.pupil, .glint) { transform: translateY(-1.2px); }
+.cat.reaching .mouth { display: none; }
+.cat.reaching .mouth-open { display: inline; animation: none; }
+
+/* petted: a little shiver of a purr (eyes and heart come from .happy) */
+.cat.purring :is(.lie, .sitting, .stand) { animation: purr 0.16s steps(2) infinite; }
+@keyframes purr { 50% { transform: translateY(0.5px); } }
+
+/* low battery: a big slow yawn */
+.cat.yawning :is(.eyes-open, .mouth) { display: none; }
+.cat.yawning :is(.eyes-shut, .mouth-open) { display: inline; }
+.cat.yawning .mouth-open { animation: yawn 1.5s steps(10) 2; }
+@keyframes yawn { 0%, 100% { transform: scale(0.5); } 40%, 60% { transform: scale(1.6, 2.4); } }
+@keyframes land { 0% { transform: scale(1.12, 0.82); } 55% { transform: scale(0.96, 1.05); } }
+
+/* walk (eased motion at 30 fps, unlike the 2.5 fps idle poses): legs in diagonal pairs, each swinging from the
+   hip with a knee that folds as the paw lifts; body bobs once per step, head nods, happy tail sways.
+   One stride = 0.62 s, which at SPEED in cat.ts keeps planted paws still against the ground. */
+.cat .leg-nb { transform-origin: 52px 57px; }
+.cat .leg-fb { transform-origin: 56px 57px; }
+.cat .leg-nf { transform-origin: 82px 57px; }
+.cat .leg-ff { transform-origin: 78px 57px; }
+.cat .leg-nb .shin { transform-origin: 54px 67px; }
+.cat .leg-fb .shin { transform-origin: 58px 67px; }
+.cat .leg-nf .shin { transform-origin: 82px 67.5px; }
+.cat .leg-ff .shin { transform-origin: 78px 67.5px; }
+.cat.walk .leg { animation: stride 0.62s infinite; }
+.cat.walk .shin { animation: knee 0.62s infinite; }
+.cat.walk :is(.leg-ff, .leg-nb),
+.cat.walk :is(.leg-ff, .leg-nb) .shin { animation-delay: -0.31s; }
+.cat.walk .torso { animation: bob 0.62s ease-in-out infinite; }
+.cat.walk .head-stand { animation: nod 0.62s ease-in-out infinite; }
+.cat.walk .tail-stand,
+.cat.play .tail-stand { animation: swish 1.24s ease-in-out infinite alternate; }
+
+/* glance: stops, stands square, tilts its head at you and slow-blinks */
+.cat .head-stand { transition: transform 0.3s ease-out; }
+.cat.glance :is(.stand, .leg, .shin, .torso, .head-stand) { animation: none; }
+.cat.glance .head-stand { transform: rotate(-9deg); }
+.cat.glance .head-stand .eyes-open { animation: slow-blink 1s ease-in-out 0.5s; }
+
+/* notes: head down at the paper, pencil scribbling (stepped, it can stay open a while); faster while you type */
+.cat.notes .head-sit { transform: rotate(5deg) translateY(1px); }
+.cat.notes .head-sit .pupil { transform: translate(0.5px, 1.2px); }
+.cat .writing-paw { transform-box: fill-box; transform-origin: 30% 80%; }
+.cat.notes .writing-paw { animation: scribble 0.5s steps(3) infinite alternate; }
+.cat.notes.scribbling .writing-paw { animation-duration: 0.16s; }
+
+/* play: head down at the yarn, paw bats it, it rolls away and back */
+.cat.play .head-stand { transform: rotate(14deg); }
+.cat.play .leg-nf { animation: swipe 1.3s ease-in-out infinite; }
+.cat .ball { transform-box: fill-box; transform-origin: center; }
+.cat.play .ball { animation: roll 1.3s ease-in-out infinite; }
+
+@keyframes open-eyes { from { transform: scaleY(0.1); } }
+@keyframes get-up { from { transform: translateY(4px) scaleY(0.82); } }
+@keyframes lie-down { from { transform: translateY(-4px) scaleY(1.18); } }
+@keyframes talk { from { transform: scaleY(0.3); } }
+@keyframes rise {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-14px); }
+}
+/* stride, knee, bob, nod, swish, swipe and roll are generated at 30 fps in cat.ts */
+@keyframes slow-blink { 50% { transform: scaleY(0.1); } }
+@keyframes scribble {
+  from { transform: translate(-1.2px, 0.3px) rotate(-5deg); }
+  to { transform: translate(1.2px, -0.2px) rotate(4deg); }
+}
+
+/* ---------- speech bubbles ---------- */
+
+/* Comic-style speech bubbles: white, ink outline, curved tail down to the cat's mouth. */
+.speech {
+  position: fixed;
+  left: 0;
+  box-sizing: border-box;
+  background: #fff;
+  border: 2px solid var(--fur);
+  border-radius: 18px;
+  box-shadow: 3px 4px 0 rgba(25, 24, 31, 0.22);
+}
+
+/* --tail = where the tail leaves the bubble; its tip ends 7px left of that and 26px below */
+.speech::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: calc(var(--tail, 50%) - 8px);
+  width: 26px;
+  height: 28px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 28'%3E%3Cpath d='M7 0 C8 11 5 20 1 27 C10 22 17 13 21 0' fill='white' stroke='%2319181f' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat;
+}
+
+#bubble {
+  bottom: 50px;
+  max-width: 260px;
+  padding: 6px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#panel {
+  bottom: 58px;
+  width: 330px;
+  padding: 10px 10px 8px;
+  animation: pop 0.18s ease-out;
+}
+
+/* cat ears on top of the task bubble */
+#panel::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: 28px;
+  width: 44px;
+  height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 16'%3E%3Cpath d='M1 16 L6 3 Q7.2 0.6 9 2.6 L17 16Z M27 16 L35 2.6 Q36.8 0.6 38 3 L43 16Z' fill='white'/%3E%3Cpath d='M5.5 13 L7.4 6 L12 12Z M32 12 L36.6 6 L38.5 13Z' fill='%23ddd7ef'/%3E%3Cpath d='M1.8 13.5 L6 3 Q7.2 0.6 9 2.6 L16 13 M28 13 L35 2.6 Q36.8 0.6 38 3 L42.2 13.5' fill='none' stroke='%2319181f' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat;
+}
+
+/* the bunny's bubble gets bunny ears: one up, one flopped over */
+body[data-skin="bunny"] #panel::before {
+  top: -40px;
+  left: 20px;
+  width: 70px;
+  height: 42px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 70 42'%3E%3Cpath d='M6 42 C1 28 1 8 10 2 C18 -2 25 12 24 42Z M38 42 C36 30 38 20 46 15 C55 9 66 14 68.5 25 C70 32 67 37 63 36 C59 35 58.5 28 55.5 26.5 C52.5 25 52 33 54 42Z' fill='white'/%3E%3Cpath d='M10 39 C7 28 6.5 12 11.5 7 C15.5 5 19 16 19 39Z M42 39 C41 31 42 23 47.5 19.5 C54 15.5 62 18.5 64.5 26 C65.5 30 64 32.5 62 32 C60 31 59.5 25.5 55.5 23.5 C51 21.5 48 28 48.5 39Z' fill='%23f6c9d4'/%3E%3Cpath d='M6.4 40.5 C1 28 1 8 10 2 C18 -2 25 12 23.9 40.5 M38.2 40.5 C36 30 38 20 46 15 C55 9 66 14 68.5 25 C70 32 67 37 63 36 C59 35 58.5 28 55.5 26.5 C52.5 25 52 33 53.8 40.5' fill='none' stroke='%2319181f' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat;
+}
+
+@keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.97); } }
+
+#panel.notes-mode { width: 400px; }
+
+/* focus timer */
+#focus-say {
+  margin: 2px 4px 4px;
+  font-weight: 600;
+}
+
+#focus-clock {
+  margin: 4px 0 10px;
+  font: 600 44px/1 "Segoe UI", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.focus-lengths,
+.focus-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.focus-lengths button,
+.focus-actions button {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: 999px;
+  font: 600 12.5px "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.focus-lengths button { background: #f1eff6; color: var(--muted); }
+.focus-lengths button[aria-pressed="true"] { background: #e7e0fb; color: #5b3fb0; }
+.focus-lengths button:disabled { opacity: 0.5; cursor: default; }
+#focus-start { background: #2e9d5b; color: #fff; padding: 6px 26px; }
+#focus-stop { background: #f1eff6; color: var(--ink); padding: 6px 22px; }
+
+/* the countdown chip by the cat while a session runs, even with the bubble closed */
+.chip {
+  position: absolute;
+  left: 2px;
+  top: 24px;
+  padding: 1px 7px;
+  border: 2px solid var(--fur);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--fur);
+  font: 700 11px/1.4 "Segoe UI", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip[data-phase="break"] { background: #e3f1e4; }
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  width: max-content;
+  margin: 0 0 8px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #f1eff6;
+}
+
+.tabs button {
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 12px "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.tabs button[aria-selected="true"] {
+  background: var(--fur);
+  color: #fff;
+}
+
+/* lined notebook paper; the lines scroll with the text */
+#notes {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 210px;
+  padding: 2px 10px;
+  border: 1px solid #cfccd8;
+  border-radius: 10px;
+  resize: none;
+  font: 13.5px/22px "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  background: repeating-linear-gradient(to bottom, #fff 0, #fff 21px, #e9e6f2 21px, #e9e6f2 22px) local;
+  user-select: text;
+}
+
+/* notes menu: one row per note, newest first; + sits bottom-right */
+#notes-menu {
+  position: relative;
+  min-height: 190px;
+}
+
+#notes-list {
+  max-height: 200px;
+  margin: 0;
+  padding: 0 0 40px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+#notes-list button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+#notes-list button:hover { background: #f3f1f8; }
+#notes-list .title { font-weight: 600; }
+
+#notes-empty {
+  margin: 28px 0 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+#note-new {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fur);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(25, 24, 31, 0.3);
+  cursor: pointer;
+}
+
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.editor-bar button {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  font: 600 12px "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+#note-back { background: #f1eff6; color: var(--ink); }
+#note-save { margin-left: auto; background: var(--fur); color: #fff; }
+
+.notes-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+#mic-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#mic {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fur);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* listening: green, with a pulsing ring */
+#mic.live {
+  background: #2e9d5b;
+  animation: ring 1.2s ease-out infinite;
+}
+
+@keyframes ring {
+  from { box-shadow: 0 0 0 0 rgba(46, 157, 91, 0.55); }
+  to { box-shadow: 0 0 0 9px rgba(46, 157, 91, 0); }
+}
+
+#notes-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#say {
+  margin: 2px 4px 6px;
+  font-weight: 600;
+}
+
+#list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+#list li:hover { background: #f3f1f8; }
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.when {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.when.soon {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.stage {
+  flex: none;
+  width: 92px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11.5px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.stage[data-stage="starting"] { --bg: #ece8f3; --fg: #4b4760; }
+.stage[data-stage="thinking"] { --bg: #e7e0fb; --fg: #5b3fb0; }
+.stage[data-stage="in-progress"] { --bg: #fdf0d2; --fg: #8a5a00; }
+.stage[data-stage="finished"] { --bg: #dff1e2; --fg: #2e6b36; }
+
+#add {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed #d4d1de;
+}
+
+#add input {
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid #cfccd8;
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+  color: var(--ink);
+}
+
+#add-title { flex: 1; }
+#add-due { flex: none; width: 150px; font-size: 12px !important; }
+
+#add button {
+  flex: none;
+  width: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--fur);
+  color: #fff;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#add input:focus-visible,
+#add button:focus-visible,
+.tabs button:focus-visible,
+.focus-lengths button:focus-visible,
+.focus-actions button:focus-visible,
+#notes-list button:focus-visible,
+#note-new:focus-visible,
+.editor-bar button:focus-visible,
+#mic:focus-visible,
+#notes:focus-visible,
+.stage:focus-visible {
+  outline: 2px solid #b8862e;
+  outline-offset: 1px;
+}

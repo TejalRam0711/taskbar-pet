@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-19 -25 38 38" width="1024" height="1024">
+  <!-- App and tray icon: the cat's front head (same drawing as headFront in src/cat.ts) on a white disc
+       so it shows on a dark taskbar. Regenerate icons with: npx tauri icon app-icon.svg -->
+  <style>
+    .fur { fill: #19181f; }
+    .ear-in { fill: #4e4a6e; }
+    .blush { fill: #e8798c; opacity: 0.45; }
+    .iris { fill: #f2c766; stroke: #b8862e; stroke-width: 0.5; }
+    .pupil { fill: #0b0a0e; }
+    .glint { fill: #fff; }
+    .nose { fill: #8a5c6c; }
+    .mouth { fill: none; stroke: #6d6a7c; stroke-width: 0.6; stroke-linecap: round; }
+  </style>
+  <circle cx="0" cy="-6" r="18" fill="#fff" stroke="#19181f" stroke-width="1.4"/>
+  <g transform="translate(0 -3)">
+    <path class="fur" d="M-11.6 -4 Q-14 -14 -12.6 -20.5 Q-12 -22.6 -10.4 -21.2 Q-6.5 -17 -3.5 -11Z M11.6 -4 Q14 -14 12.6 -20.5 Q12 -22.6 10.4 -21.2 Q6.5 -17 3.5 -11Z"/>
+    <path class="ear-in" d="M-10.5 -6.5 Q-12 -13.5 -11.4 -18 Q-7.8 -15 -5.6 -11Z M10.5 -6.5 Q12 -13.5 11.4 -18 Q7.8 -15 5.6 -11Z"/>
+    <path class="fur" d="M-12.5 -1 C-13 -9 -6.5 -12 0 -12 C6.5 -12 13 -9 12.5 -1 C12.3 5 7 9.8 0 10 C-7 9.8 -12.3 5 -12.5 -1Z"/>
+    <ellipse class="blush" cx="-8" cy="5" rx="2.4" ry="1.2"/>
+    <ellipse class="blush" cx="8" cy="5" rx="2.4" ry="1.2"/>
+    <ellipse class="iris" cx="-5.2" cy="-0.5" rx="3.9" ry="4.7"/>
+    <ellipse class="iris" cx="5.2" cy="-0.5" rx="3.9" ry="4.7"/>
+    <ellipse class="pupil" cx="-4.9" cy="-0.2" rx="2.1" ry="3.7"/>
+    <ellipse class="pupil" cx="5.5" cy="-0.2" rx="2.1" ry="3.7"/>
+    <circle class="glint" cx="-3.9" cy="-2.6" r="1"/>
+    <circle class="glint" cx="6.5" cy="-2.6" r="1"/>
+    <path class="nose" d="M-1 4.6 L1 4.6 L0 5.7Z"/>
+    <path class="mouth" d="M-1.6 6.6 Q-0.8 7.6 0 6.8 Q0.8 7.6 1.6 6.6"/>
+  </g>
+</svg>
