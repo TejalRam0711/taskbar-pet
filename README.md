@@ -10,7 +10,9 @@ It reads `Documents/Pet/pet-tasks.json` (format: `pet-tasks.example.json`).
   your notes (newest first); + starts one; it saves as you type and on Save; clear a note and save to delete it.
   Stored in `Documents/Pet/pet-notes.json`.
 - Mic (in a note): press it, it turns green, talk, and your words show as you say them (on the GPU; they can
-  still change), each sentence settling a moment after you pause. Whisper (whisper.cpp) does the writing, on this laptop: no key, no overlay, no
+  still change), each sentence settling a moment after you pause. A pause of about 3 s after a finished sentence
+  starts a new line; Esc stops and throws away what's still being written. Whisper is told your to-do titles and
+  the note so far, so names come out spelled your way. Whisper (whisper.cpp) does the writing, on this laptop: no key, no overlay, no
   internet. Install it once with `powershell -ExecutionPolicy Bypass -File .\scripts\get-whisper.ps1` (checksums
   verified) into `%LOCALAPPDATA%\com.tejal.taskbarpet\whisper`. With an NVIDIA GPU it uses the CUDA build and the
   large-v3-turbo model instead, once NVIDIA's `cublas64_11.dll` and `cublasLt64_11.dll` (CUDA 11.8 cuBLAS) are in

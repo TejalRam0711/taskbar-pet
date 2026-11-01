@@ -127,16 +127,18 @@ fn set_game_mode(menu: tauri::State<PetMenu>, on: bool) {
 // (words that may still change). "dictation-end" (with an error message or null) when it stops: you pressed the
 // mic again, a minute without a phrase, or a failure such as Whisper missing. (Windows' own recognisers were
 // tried first: the online one heard speech here but returned no words, the offline one was mostly wrong.)
-// (session number, how to stop the current session)
+// `keep: false` stops without writing down anything still being heard (Esc). `hint`: words to expect, such as
+// names from your to-dos, so Whisper spells them your way.
+// (session number, how to stop the current session: true = keep what's been said)
 #[derive(Default)]
-struct Dictation(Mutex<(u64, Option<mpsc::Sender<()>>)>);
+struct Dictation(Mutex<(u64, Option<mpsc::Sender<bool>>)>);
 
 #[tauri::command]
-fn dictate(app: AppHandle, state: tauri::State<Dictation>, on: bool) {
+fn dictate(app: AppHandle, state: tauri::State<Dictation>, on: bool, keep: Option<bool>, hint: Option<String>) {
     let mut d = state.0.lock().unwrap();
     d.0 += 1;
     if let Some(stop) = d.1.take() {
-        let _ = stop.send(());
+        let _ = stop.send(keep.unwrap_or(true));
     }
     if !on {
         return;
@@ -145,7 +147,7 @@ fn dictate(app: AppHandle, state: tauri::State<Dictation>, on: bool) {
     d.1 = Some(stop_tx);
     let session = d.0;
     thread::spawn(move || {
-        let error = listen(&app, stop_rx).err();
+        let error = listen(&app, stop_rx, &hint.unwrap_or_default()).err();
         let state = app.state::<Dictation>();
         let mut d = state.0.lock().unwrap();
         // Only report an end the page didn't ask for (silence or an error), not a press of the mic button.
@@ -160,7 +162,7 @@ const RATE: usize = 16_000; // Whisper wants 16 kHz mono 16-bit
 const BLOCK: usize = RATE / 10; // the mic is read 100 ms at a time
 
 #[cfg(windows)]
-fn listen(app: &AppHandle, stop: mpsc::Receiver<()>) -> Result<(), String> {
+fn listen(app: &AppHandle, stop: mpsc::Receiver<bool>, hint: &str) -> Result<(), String> {
     use windows::{
         core::Interface,
         Win32::{Media::Speech::*, System::Com::*},
@@ -183,7 +185,7 @@ fn listen(app: &AppHandle, stop: mpsc::Receiver<()>) -> Result<(), String> {
             mic.SetFormat(&SPDFID_WAVEFORMATEX, &PCM)?;
             mic.SetState(SPAS_RUN, 0)?;
             let heard = |text: String, done| drop(app.emit(if done { "dictation" } else { "dictation-partial" }, text));
-            let done = dictate_from(&mic.cast()?, &stop, &data.join("whisper"), heard, &log);
+            let done = dictate_from(&mic.cast()?, &stop, &data.join("whisper"), hint, heard, &log);
             let _ = mic.SetState(SPAS_CLOSED, 0);
             Ok(done)
         }
@@ -192,7 +194,7 @@ fn listen(app: &AppHandle, stop: mpsc::Receiver<()>) -> Result<(), String> {
 }
 
 #[cfg(not(windows))]
-fn listen(_: &AppHandle, _: mpsc::Receiver<()>) -> Result<(), String> {
+fn listen(_: &AppHandle, _: mpsc::Receiver<bool>, _: &str) -> Result<(), String> {
     Err("Dictation needs Windows".into())
 }
 
@@ -207,11 +209,14 @@ const PCM: windows::Win32::Media::Audio::WAVEFORMATEX = windows::Win32::Media::A
 // runs out, or a minute passes without a phrase. Whisper writes the phrases down on a second thread, in order;
 // each one's text goes to `heard(text, true)` (empty if it was only noise). On the GPU, the phrase you're still
 // saying is also written down whenever Whisper is free and you've said more since: `heard(text, false)`.
+// Whisper gets `hint` and the phrase before as context. Text starting with a line break begins a new paragraph:
+// a long pause after a finished sentence. Stopped with `false` (Esc), nothing more goes to `heard`.
 #[cfg(windows)]
 fn dictate_from(
     input: &windows::Win32::System::Com::ISequentialStream,
-    stop: &mpsc::Receiver<()>,
+    stop: &mpsc::Receiver<bool>,
     whisper: &std::path::Path,
+    hint: &str,
     heard: impl Fn(String, bool) + Sync,
     log: &(dyn Fn(String) + Sync),
 ) -> Result<(), String> {
@@ -228,20 +233,27 @@ fn dictate_from(
         return Err("Whisper isn't installed (run scripts/get-whisper.ps1)".into());
     }
     let (heard, pending) = (&heard, &AtomicUsize::new(0)); // pending: phrases sent to Whisper and not written yet
+    let cancelled = &AtomicBool::new(false);
     thread::scope(|s| {
-        let (phrases_tx, phrases_rx) = mpsc::channel::<(Vec<i16>, bool)>();
+        let (phrases_tx, phrases_rx) = mpsc::channel::<(Vec<i16>, bool, bool)>();
         let worker = s.spawn(move || -> Result<(), String> {
             let t = Instant::now();
             let whisper = Server::start(&exe, &model)?;
             log(format!("whisper loaded, {} ms", t.elapsed().as_millis()));
-            for (phrase, done) in phrases_rx {
+            let mut previous = String::new(); // the last phrase written down
+            for (phrase, done, long_pause) in phrases_rx {
                 let t = Instant::now();
-                match whisper.transcribe(&phrase, !on_gpu) {
+                match whisper.transcribe(&phrase, !on_gpu, &format!("{hint} {previous}")) {
                     Ok(text) => {
+                        let paragraph = long_pause && previous.ends_with(['.', '?', '!']) && !text.is_empty();
+                        let text = if paragraph { format!("\n{text}") } else { text };
                         if done {
                             log(format!("{:.1} s of speech, {} ms: {text}", phrase.len() as f32 / RATE as f32, t.elapsed().as_millis()));
+                            previous = text.trim().into();
                         }
-                        heard(text, done);
+                        if !cancelled.load(SeqCst) {
+                            heard(text, done);
+                        }
                     }
                     Err(e) => log(format!("whisper failed: {e}")),
                 }
@@ -249,9 +261,9 @@ fn dictate_from(
             }
             Ok(())
         });
-        let send = move |phrase, done| {
+        let send = move |phrase, done, long_pause| {
             pending.fetch_add(1, SeqCst);
-            let _ = phrases_tx.send((phrase, done));
+            let _ = phrases_tx.send((phrase, done, long_pause));
         };
         log("listening".into());
         let (mut phrases, mut block, mut last, mut sent) = (Phrases::default(), vec![0i16; BLOCK], Instant::now(), 0);
@@ -263,27 +275,35 @@ fn dictate_from(
             }
             if let Some(phrase) = phrases.push(&block[..got as usize / 2]) {
                 (last, sent) = (Instant::now(), 0);
-                send(phrase, true);
+                send(phrase, true, phrases.long_pause);
             } else if on_gpu && pending.load(SeqCst) == 0 && phrases.loud >= 3 && phrases.quiet == 0 && phrases.phrase.len() >= sent + 3 * BLOCK {
                 // the phrase so far, so words show while you talk (only when Whisper is idle, so the
                 // finished phrase never waits behind more than one of these)
                 sent = phrases.phrase.len();
-                send(phrases.phrase.clone(), false);
+                send(phrases.phrase.clone(), false, phrases.long_pause);
             }
             if worker.is_finished() {
                 break; // Whisper didn't start
             }
-            if !matches!(stop.try_recv(), Err(mpsc::TryRecvError::Empty)) {
-                log("stopped by the mic button".into());
-                break;
+            match stop.try_recv() {
+                Err(mpsc::TryRecvError::Empty) => {}
+                Ok(false) => {
+                    log("cancelled with Esc".into());
+                    cancelled.store(true, SeqCst);
+                    break;
+                }
+                _ => {
+                    log("stopped by the mic button".into());
+                    break;
+                }
             }
             if last.elapsed() > Duration::from_secs(60) {
                 log("a minute without a phrase".into());
                 break;
             }
         }
-        if let Some(phrase) = phrases.flush() {
-            send(phrase, true); // what you said just before pressing stop
+        if let Some(phrase) = phrases.flush().filter(|_| !cancelled.load(SeqCst)) {
+            send(phrase, true, phrases.long_pause); // what you said just before pressing stop
         }
         drop(send); // lets Whisper finish what's sent and stop
         worker.join().map_err(|_| "Whisper's thread crashed".to_string())?
@@ -293,7 +313,8 @@ fn dictate_from(
 // Cuts 100 ms blocks of audio into phrases: from the block before the first loud one to 0.7 s of quiet after the
 // last (or 25 s, inside Whisper's 30 s window). Loud = well above the background level, which follows quiet
 // drops at once and rises only slowly, so talking doesn't raise it. A phrase with under 0.3 s of loud audio is
-// dropped as a click or a bump: Whisper tends to find words in noise.
+// dropped as a click or a bump: Whisper tends to find words in noise. `long_pause`: the phrase came after 2 s
+// or more of quiet beyond that 0.7 s, so it may start a new paragraph.
 #[derive(Default)]
 struct Phrases {
     floor: f32,
@@ -301,6 +322,8 @@ struct Phrases {
     phrase: Vec<i16>,
     loud: u32,
     quiet: u32,
+    pause: u32, // quiet blocks since the last phrase
+    long_pause: bool,
 }
 
 impl Phrases {
@@ -310,10 +333,12 @@ impl Phrases {
         self.floor = if rms < self.floor || self.floor == 0.0 { rms } else { self.floor * 0.995 + rms * 0.005 };
         if self.phrase.is_empty() && !loud {
             self.before = block.to_vec();
+            self.pause += 1;
             return None;
         }
         if self.phrase.is_empty() {
             self.phrase = std::mem::take(&mut self.before);
+            (self.long_pause, self.pause) = (self.pause >= 20, 0);
         }
         self.phrase.extend_from_slice(block);
         if loud {
@@ -379,13 +404,16 @@ impl Server {
 
     // One phrase, posted as a .wav file; the words come back as text. `shorten` cuts Whisper's audio window to the
     // phrase's length (+1 s): ~3x faster than the full 30 s on the CPU. Not for the large model on the GPU: it
-    // repeats itself with a cut window, and the full one costs ~0.15 s more there. Lines like "[BLANK_AUDIO]" or
-    // "(wind)" are Whisper describing noise, not words.
-    fn transcribe(&self, phrase: &[i16], shorten: bool) -> Result<String, String> {
+    // repeats itself with a cut window, and the full one costs ~0.15 s more there. `prompt` is text Whisper takes
+    // as coming just before, so names in it come out spelled that way. Lines like "[BLANK_AUDIO]" or "(wind)" are
+    // Whisper describing noise, not words.
+    fn transcribe(&self, phrase: &[i16], shorten: bool, prompt: &str) -> Result<String, String> {
         const B: &str = "taskbar-pet-phrase"; // form boundary
         let context = if shorten { ((phrase.len() / RATE + 1) * 50).clamp(300, 1500) } else { 0 }; // 1500 = 30 s, 0 = all
         let field = |name: &str, value: &str| format!("--{B}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n");
-        let mut form = [field("response_format", "text"), field("audio_ctx", &context.to_string())].concat().into_bytes();
+        let mut form = [field("response_format", "text"), field("audio_ctx", &context.to_string()), field("prompt", prompt.trim())]
+            .concat()
+            .into_bytes();
         form.extend(format!("--{B}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"phrase.wav\"\r\n\r\n").bytes());
         form.extend(wav_bytes(phrase));
         form.extend(format!("\r\n--{B}--\r\n").bytes());
@@ -650,7 +678,7 @@ mod tests {
             file.BindToFile(&wav, SPFM_CREATE_ALWAYS, Some(&super::SPDFID_WAVEFORMATEX), Some(&super::PCM), 0).unwrap();
             let voice: ISpVoice = CoCreateInstance(&SpVoice, None, CLSCTX_ALL).unwrap();
             voice.SetOutput(&file, true).unwrap();
-            let text = w!("Buy milk on the way home. <silence msec=\"1200\"/> Call Kevin about the meeting tomorrow.");
+            let text = w!("Buy milk on the way home. <silence msec=\"3000\"/> Call Kevin about the meeting tomorrow.");
             voice.Speak(text, SPF_IS_XML.0 as u32, None).unwrap();
             file.Close().unwrap();
 
@@ -661,11 +689,25 @@ mod tests {
                 true if !t.is_empty() => heard.lock().unwrap().push(t),
                 _ => eprintln!("still hearing: {t}"),
             };
-            super::dictate_from(&file.cast().unwrap(), &stopped, &whisper, finished, &|l| eprintln!("{l}")).unwrap();
+            super::dictate_from(&file.cast().unwrap(), &stopped, &whisper, "Coffee with Kevin.", finished, &|l| eprintln!("{l}")).unwrap();
         }
         let words = |s: &str| s.to_lowercase().replace(['.', ','], "");
         let heard = heard.into_inner().unwrap();
-        assert_eq!(heard.iter().map(|s| words(s)).collect::<Vec<_>>(), ["buy milk on the way home", "call kevin about the meeting tomorrow"]);
+        // the 3 s pause after a finished sentence starts a new paragraph
+        assert_eq!(heard.iter().map(|s| words(s)).collect::<Vec<_>>(), ["buy milk on the way home", "\ncall kevin about the meeting tomorrow"]);
+    }
+
+    #[test]
+    fn a_long_pause_is_marked() {
+        let mut p = super::Phrases::default();
+        let (quiet, loud) = (vec![20i16; super::BLOCK], vec![4000i16; super::BLOCK]);
+        let mut say = |pause: usize| {
+            [&quiet].repeat(pause).into_iter().chain([&loud; 5]).chain([&quiet; 7]).for_each(|b| drop(p.push(b)));
+            p.long_pause
+        };
+        assert!(!say(5));
+        assert!(!say(19));
+        assert!(say(20)); // 2 s beyond the 0.7 s that ends a phrase
     }
 
     #[test]

@@ -260,19 +260,32 @@ function micUi(on: boolean, status = on ? 'Listening…' : '') {
 function setListening(on: boolean) {
   if (on === listening) return;
   if (on) micNote = editing;
-  invoke('dictate', { on }).catch(console.error);
+  // Words for Whisper to expect, so names come out spelled your way: your to-dos and the note so far.
+  const hint = [...tasks.slice(0, 15).map((t) => t.title), notes.value.slice(0, notes.selectionStart).slice(-200)];
+  invoke('dictate', { on, hint: hint.filter(Boolean).join('. ') }).catch(console.error);
   micUi(on);
+}
+// Esc while dictating: stops, and nothing still being written goes in the note.
+function cancelDictation() {
+  if (liveShown()) notes.setRangeText('', live!.at, live!.at + live!.text.length, 'end');
+  live = null;
+  invoke('dictate', { on: false, keep: false }).catch(console.error);
+  micUi(false, 'Cancelled');
 }
 mic.addEventListener('mousedown', (e) => e.preventDefault()); // keep the caret in the note
 mic.addEventListener('click', () => {
   notes.focus();
   setListening(!listening);
 });
+// Heard words as they go after `before`: after a space, or a line break when Whisper starts a new paragraph
+// (its words then start with one).
+const spaced = (before: string, words: string) =>
+  (words && /\S$/.test(before) ? (words.startsWith('\n') ? '\n' : ' ') : '') + words.trimStart();
 // Puts words at the caret, as if typed, or in place of the words still being heard if they're still there.
 function putHeard(words: string) {
   const at = liveShown() ? live!.at : notes.selectionStart;
   const end = liveShown() ? live!.at + live!.text.length : notes.selectionEnd;
-  const text = (words && at > 0 && !/\s$/.test(notes.value.slice(0, at)) ? ' ' : '') + words;
+  const text = spaced(notes.value.slice(0, at), words);
   notes.setRangeText(text, at, end, 'end');
   return { at, text };
 }
@@ -287,8 +300,7 @@ listen<string>('dictation', async ({ payload }) => {
   if (editing?.id !== micNote.id) {
     live = null;
     if (!payload) return;
-    const sep = micNote.text && !/\s$/.test(micNote.text) ? ' ' : '';
-    micNote = { ...micNote, text: micNote.text + sep + payload, updated: new Date().toISOString() };
+    micNote = { ...micNote, text: micNote.text + spaced(micNote.text, payload), updated: new Date().toISOString() };
     await saveNote(micNote).catch(console.error);
     if (!panel.hidden && mode === 'notes' && !editing) showNotesMenu();
     return;
@@ -550,7 +562,7 @@ catEl.addEventListener('mouseenter', () => {
   anchor(bubble, 0.73);
 });
 catEl.addEventListener('mouseleave', () => flashTimer || (bubble.hidden = true));
-window.addEventListener('keydown', (e) => e.key === 'Escape' && closePanel());
+window.addEventListener('keydown', (e) => e.key === 'Escape' && (listening ? cancelDictation() : closePanel()));
 // Click away to close, except while dictating (the Windows voice typing bar can take focus).
 window.addEventListener('blur', () => listening || closePanel());
 
