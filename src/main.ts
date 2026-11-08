@@ -4,6 +4,7 @@ import { getCurrentWindow, PhysicalPosition, PhysicalSize, primaryMonitor } from
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { bubbleText, defaultDue, renderList, renderNotes, speech } from './bubble';
 import { createCat, type Mover } from './cat';
+import { applySignal } from './claude';
 import { dueReminders, moodFor, newTask, relDay, shortDate, type Stage, type Task } from './due';
 import { byUpdated, newNoteId, type Note } from './notes';
 import { addTask, loadNotes, saveNote, setStage, watchTasks } from './tasks';
@@ -118,8 +119,37 @@ function flash(msg: string, ms = 4000) {
   flashTimer = window.setTimeout(() => {
     flashTimer = 0;
     bubble.hidden = true;
+    showInputNeeded();
   }, ms);
 }
+
+// Claude needs you (claude.ts has who and why): hand up and a bubble until it's over or you click the cat, and
+// a small meow, unless the pet is hidden or snoozed, the mic would hear it, or it has only just meowed.
+const INPUT_NEEDED = 'Input needed';
+const waiting = new Set<string>();
+let meowedAt = 0;
+function showInputNeeded() {
+  if (waiting.size) flash(INPUT_NEEDED, 86_400_000);
+}
+function claudeChanged() {
+  cat.perk(waiting.size > 0 || dragging);
+  showInputNeeded();
+  if (!waiting.size && bubble.textContent === INPUT_NEEDED) {
+    clearTimeout(flashTimer);
+    flashTimer = 0;
+    bubble.hidden = true;
+  }
+}
+async function meow() {
+  if (listening || Date.now() < snoozedUntil || Date.now() - meowedAt < 20_000 || !(await win.isVisible())) return;
+  meowedAt = Date.now();
+  invoke('play_meow').catch(console.error);
+}
+listen<string[]>('claude', ({ payload }) => {
+  if (applySignal(waiting, payload)) meow();
+  claudeChanged();
+});
+listen<string>('claude-link', ({ payload }) => flash(payload, 6000)); // Menu › Link to Claude: how it went
 
 function refresh() {
   const now = new Date();
@@ -384,7 +414,7 @@ const intoField = (e: DragEvent) => e.target instanceof HTMLTextAreaElement || e
 function dragOver(on: boolean) {
   if (on === dragging) return;
   dragging = on;
-  cat.perk(on);
+  cat.perk(on || waiting.size > 0);
   if (on) flash("Drop it on me, I'll keep it as a note", 60_000);
   else if (flashTimer) flash('', 0);
 }
@@ -504,6 +534,7 @@ async function closePanel() {
   cat.setNotes(false);
   cat.rest();
   await layout(false);
+  showInputNeeded();
 }
 
 // Drag it along the taskbar: Rust carries the window with the cursor until you let go. It stays there
@@ -532,7 +563,10 @@ catEl.addEventListener('pointermove', async (e) => {
 });
 catEl.addEventListener('click', () => {
   if (dragged) dragged = false;
-  else panel.hidden ? openPanel() : closePanel();
+  else if (waiting.size) {
+    waiting.clear(); // "got it"
+    claudeChanged();
+  } else panel.hidden ? openPanel() : closePanel();
 });
 // Pet it: stroke the mouse back and forth over it (no button) and every fourth quick turn it purrs.
 let strokeDir = 0, strokeFrom = 0, strokeAt = 0, strokes = 0;
@@ -616,7 +650,10 @@ listen<boolean>('game-mode', ({ payload }) => {
   gameMode = payload;
   cat.hold(payload);
   if (payload) closePanel();
-  else checkBattery();
+  else {
+    checkBattery();
+    if (waiting.size) meow();
+  }
 });
 
 await placeAboveTaskbar();

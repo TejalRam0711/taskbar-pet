@@ -23,7 +23,7 @@ tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] } # keeps Claude's settings file in its own order
 
 # Same version Tauri already pulls in: desktop speech recogniser (notes dictation), fullscreen detection (game
 # mode), last-input time (stretch nudges).

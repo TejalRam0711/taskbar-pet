@@ -234,6 +234,8 @@ body {
 .cat:is(.reaching, .caught) .legs-sit { display: none; }
 .cat.reaching .sitting { transform-origin: 80px 78px; animation: tiptoe 0.5s infinite; }
 .cat.reaching :is(.arm-l, .arm-r) { animation: grab 0.5s infinite; }
+.cat.reaching.still .sitting { animation: none; transform: scaleY(1.06); }
+.cat.reaching.still :is(.arm-l, .arm-r) { animation: none; }
 .cat .arm-l { transform-origin: 74.5px 55px; }
 .cat .arm-r { transform-origin: 85.5px 55px; }
 .cat.reaching :is(.pupil, .glint) { transform: translateY(-1.2px); }

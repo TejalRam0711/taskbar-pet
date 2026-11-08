@@ -1,3 +1,4 @@
+use serde_json::{json, Value};
 use std::{
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering::SeqCst},
@@ -105,8 +106,8 @@ fn button_down() -> bool {
     false
 }
 
-// The tray menu, also shown when you right-click the pet, and its game mode tick.
-struct PetMenu(Menu<Wry>, CheckMenuItem<Wry>);
+// The tray menu, also shown when you right-click the pet, and its game mode and Claude ticks.
+struct PetMenu(Menu<Wry>, CheckMenuItem<Wry>, CheckMenuItem<Wry>);
 
 #[tauri::command]
 fn pet_menu(window: WebviewWindow, menu: tauri::State<PetMenu>) -> Result<(), String> {
@@ -534,36 +535,188 @@ fn fullscreen_app() -> bool {
     false
 }
 
+// Claude link. There's no way to link to a Claude account, so this goes through Claude Code on this laptop: hooks
+// in its settings run the pet with CLAUDE_FLAG and the event on stdin, and that process passes the signal on to the
+// running pet by starting itself again with CLAUDE_SIGNAL (single-instance forwards the arguments).
+const CLAUDE_FLAG: &str = "--claude-hook";
+const CLAUDE_SIGNAL: &str = "--claude-signal";
+// (event, matcher). A prompt fires PermissionRequest at once, and the Notification about 6 s later if unanswered.
+const CLAUDE_HOOKS: [(&str, &str); 9] = [
+    ("PermissionRequest", ""),
+    ("PreToolUse", "AskUserQuestion|ExitPlanMode"),
+    ("Notification", "permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input"),
+    ("PostToolUse", ""),
+    ("PostToolUseFailure", ""),
+    ("PermissionDenied", ""),
+    ("Stop", ""),
+    ("UserPromptSubmit", ""),
+    ("SessionEnd", ""),
+];
+
+fn claude_hook() {
+    use std::io::Read;
+    let mut input = String::new();
+    let _ = std::io::stdin().read_to_string(&mut input);
+    let signal = serde_json::from_str(&input).ok().and_then(|event| claude_signal(&event));
+    if let (Some(signal), Ok(exe)) = (signal, std::env::current_exe()) {
+        let _ = std::process::Command::new(exe).arg(CLAUDE_SIGNAL).args(signal).status();
+    }
+}
+
+// What a hook event means for the pet: [kind, session, tool], explained in claude.ts. In the desktop app a closing
+// question can also be the next-step box (its wrap_up tool's `ask`) rather than the end of the reply.
+fn claude_signal(event: &Value) -> Option<Vec<String>> {
+    let text = |key: &str| event[key].as_str().unwrap_or_default();
+    let tool = text("tool_name");
+    let asks = text("last_assistant_message")
+        .lines()
+        .rev()
+        .filter(|line| !line.trim().is_empty())
+        .take(2)
+        .any(|line| line.trim_end().trim_end_matches(['*', '_']).ends_with('?'));
+    let (kind, tool) = match text("hook_event_name") {
+        "PermissionRequest" | "PreToolUse" => ("up", tool),
+        "Notification" => ("up", ""),
+        "PostToolUse" if tool.ends_with("wrap_up") && event["tool_input"]["ask"].as_str().is_some_and(|a| !a.is_empty()) => ("up", "asked"),
+        "PostToolUse" | "PostToolUseFailure" | "PermissionDenied" => ("down", tool),
+        "Stop" if asks => ("up", "asked"),
+        "Stop" => ("stop", ""),
+        "UserPromptSubmit" | "SessionEnd" => ("clear", ""),
+        _ => return None,
+    };
+    let args = [kind, text("session_id"), tool];
+    Some(args.iter().filter(|arg| !arg.is_empty()).map(|arg| arg.to_string()).collect())
+}
+
+// Adds the pet's hooks to Claude Code's settings or takes them out, leaving everything else as it was.
+fn set_claude_hooks(settings: &mut Value, exe: &str, on: bool) -> Result<(), String> {
+    let root = settings.as_object_mut().ok_or("its settings aren't a JSON object")?;
+    let events = root.entry("hooks").or_insert_with(|| json!({})).as_object_mut().ok_or("its hooks aren't a JSON object")?;
+    events.retain(|_, entries| match entries.as_array_mut() {
+        Some(list) => {
+            list.retain(|entry| !entry.to_string().contains(CLAUDE_FLAG));
+            !list.is_empty()
+        }
+        None => true,
+    });
+    if on {
+        for (event, matcher) in CLAUDE_HOOKS {
+            let hook = json!({ "type": "command", "async": true, "command": exe, "args": [CLAUDE_FLAG] });
+            let entry = if matcher.is_empty() { json!({ "hooks": [hook] }) } else { json!({ "matcher": matcher, "hooks": [hook] }) };
+            events.entry(event).or_insert_with(|| json!([])).as_array_mut().ok_or("its hooks aren't lists")?.push(entry);
+        }
+    }
+    if events.is_empty() {
+        root.shift_remove("hooks");
+    }
+    Ok(())
+}
+
+fn claude_settings(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    Ok(app.path().home_dir().map_err(|e| e.to_string())?.join(".claude").join("settings.json"))
+}
+
+// A settings file that can't be read is left alone. Written to one side first, so it's never half-written.
+fn link_claude(app: &AppHandle, on: bool) -> Result<(), String> {
+    let path = claude_settings(app)?;
+    let text = match std::fs::read_to_string(&path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => "{}".to_string(),
+        read => read.map_err(|e| e.to_string())?,
+    };
+    let mut settings = serde_json::from_str(&text).map_err(|e| format!("its settings file has a problem: {e}"))?;
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    set_claude_hooks(&mut settings, &exe.to_string_lossy(), on)?;
+    let temp = path.with_extension("json.pet");
+    let pretty = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    std::fs::write(&temp, pretty + "\n").and_then(|_| std::fs::rename(&temp, &path)).map_err(|e| e.to_string())
+}
+
+// A small meow, made here so there's no recording to ship: a kitten-high voice (f0) that goes up fast and comes down
+// slowly, while the mouth (its resonances, f1 and f2) goes ee-ah-oo.
+fn meow() -> Vec<i16> {
+    use std::f32::consts::{PI, TAU};
+    let n = RATE * 6 / 10;
+    let mut phase = 0.0f32;
+    let sound: Vec<f32> = (0..n)
+        .map(|i| {
+            let t = i as f32 / n as f32;
+            let up = (PI * t.powf(0.7)).sin();
+            let f0 = 750.0 + 450.0 * up - 150.0 * t + 15.0 * (TAU * 3.6 * t).sin();
+            phase += TAU * f0 / RATE as f32;
+            let (f1, f2) = (600.0 + 800.0 * up, 3000.0 - 2000.0 * t);
+            let resonance = |f: f32, at: f32, width: f32| 1.0 / (1.0 + ((f - at) / width).powi(2));
+            let harmonics: f32 = (1..=6)
+                .map(|h| {
+                    let f = h as f32 * f0;
+                    (resonance(f, f1, 400.0) + 0.6 * resonance(f, f2, 500.0)) * (phase * h as f32).sin() / h as f32
+                })
+                .sum();
+            harmonics * (t / 0.1).min(1.0) * ((1.0 - t) / 0.3).min(1.0)
+        })
+        .collect();
+    let peak = sound.iter().fold(0.0f32, |p, s| p.max(s.abs()));
+    sound.iter().map(|s| (s / peak * 0.35 * i16::MAX as f32) as i16).collect()
+}
+
+#[tauri::command]
+fn play_meow() {
+    #[cfg(windows)]
+    thread::spawn(|| unsafe {
+        use windows::{core::PCWSTR, Win32::Media::Audio::*};
+        let wav = wav_bytes(&meow());
+        let _ = PlaySoundW(PCWSTR(wav.as_ptr().cast()), None, SND_MEMORY | SND_SYNC | SND_NODEFAULT);
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    if std::env::args().nth(1).as_deref() == Some(CLAUDE_FLAG) {
+        return claude_hook();
+    }
     tauri::Builder::default()
         // Opening it again (Start menu, Startup) shows the pet that's already running instead of a second one.
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Some(win) = app.get_webview_window("main") {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if let Some(at) = args.iter().position(|arg| arg == CLAUDE_SIGNAL) {
+                let _ = app.emit("claude", &args[at + 1..]);
+            } else if let Some(win) = app.get_webview_window("main") {
                 USER_HIDDEN.store(false, SeqCst);
                 let _ = win.show();
             }
         }))
+        // A signal from Claude with no pet running to hear it: stop before any window opens.
+        .plugin(
+            tauri::plugin::Builder::<Wry, ()>::new("claude-signal")
+                .setup(|_, _| {
+                    if std::env::args().any(|arg| arg == CLAUDE_SIGNAL) {
+                        std::process::exit(0);
+                    }
+                    Ok(())
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .manage(HitAreas::default())
         .manage(WalkId::default())
         .manage(Dictation::default())
         .invoke_handler(tauri::generate_handler![
-            set_hit_areas, walk_to, halt, drag, pet_menu, set_game_mode, dictate, idle_ms
+            set_hit_areas, walk_to, halt, drag, pet_menu, set_game_mode, dictate, idle_ms, play_meow
         ])
         .setup(|app| {
             let toggle = MenuItem::with_id(app, "toggle", "Hide / show pet", true, None::<&str>)?;
             let snooze = MenuItem::with_id(app, "snooze", "Snooze 1 hour", true, None::<&str>)?;
             let game = CheckMenuItem::with_id(app, "game", "Hide during games / fullscreen", true, true, None::<&str>)?;
+            // Ticked if the pet's hooks are in Claude's settings: that file is what really decides.
+            let linked = claude_settings(app.handle()).is_ok_and(|path| std::fs::read_to_string(path).is_ok_and(|s| s.contains(CLAUDE_FLAG)));
+            let claude = CheckMenuItem::with_id(app, "claude", "Link to Claude", true, linked, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             // Skins: ids match SkinId in skins.ts; the page swaps the drawing and remembers the choice.
             let skins = [("black", "Black cat"), ("orange", "Orange cat"), ("tabby", "Tabby cat"), ("bunny", "Bunny")]
                 .map(|(id, name)| MenuItem::with_id(app, format!("skin:{id}"), name, true, None::<&str>));
             let [a, b, c, d] = skins;
             let pet = Submenu::with_items(app, "Pet", true, &[&a?, &b?, &c?, &d?])?;
-            let menu = Menu::with_items(app, &[&pet, &toggle, &snooze, &game, &quit])?;
-            app.manage(PetMenu(menu.clone(), game));
+            let menu = Menu::with_items(app, &[&pet, &toggle, &snooze, &game, &claude, &quit])?;
+            app.manage(PetMenu(menu.clone(), game, claude));
             // Handles the right-click menu too: Tauri passes every menu event to this handler.
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -578,6 +731,20 @@ pub fn run() {
                         let on = app.state::<PetMenu>().1.is_checked().unwrap_or(true);
                         GAME_MODE.store(on, SeqCst);
                         let _ = app.emit("game-mode-setting", on);
+                    }
+                    // The tick has already flipped itself; if the settings couldn't be changed, it flips back.
+                    "claude" => {
+                        let tick = &app.state::<PetMenu>().2;
+                        let on = tick.is_checked().unwrap_or(false);
+                        let note = match link_claude(app, on) {
+                            Ok(()) if on => "Linked! My hand goes up when Claude needs you".to_string(),
+                            Ok(()) => "Unlinked from Claude".to_string(),
+                            Err(e) => {
+                                let _ = tick.set_checked(!on);
+                                format!("Couldn't change the link to Claude: {e}")
+                            }
+                        };
+                        let _ = app.emit("claude-link", note);
                     }
                     "toggle" => {
                         if let Some(win) = app.get_webview_window("main") {
@@ -640,6 +807,7 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::covers;
+    use serde_json::json;
 
     #[test]
     fn phrases_are_cut_at_pauses_and_clicks_are_dropped() {
@@ -695,6 +863,65 @@ mod tests {
         let heard = heard.into_inner().unwrap();
         // the 3 s pause after a finished sentence starts a new paragraph
         assert_eq!(heard.iter().map(|s| words(s)).collect::<Vec<_>>(), ["buy milk on the way home", "\ncall kevin about the meeting tomorrow"]);
+    }
+
+    #[test]
+    fn the_meow_is_high_and_small_and_goes_up_then_down() {
+        let meow = super::meow();
+        assert_eq!(meow.len(), super::RATE * 6 / 10);
+        assert_eq!(meow.iter().map(|s| s.abs()).max().unwrap(), (0.35 * i16::MAX as f32) as i16); // far from full volume
+        assert!(meow[0].abs() < 50 && meow[meow.len() - 1].abs() < 50); // no click at either end
+        // The pitch where a stretch of it best matches itself shifted along.
+        let pitch = |at: f32| {
+            let part = &meow[(at * meow.len() as f32) as usize..][..800];
+            let matches = |lag: usize| part.iter().zip(&part[lag..]).map(|(&a, &b)| a as i64 * b as i64).sum::<i64>();
+            super::RATE as f32 / (10..40).max_by_key(|&lag| matches(lag)).unwrap() as f32
+        };
+        assert!(pitch(0.3) > 1000.0, "peak {}", pitch(0.3));
+        assert!(pitch(0.05) < pitch(0.3) && pitch(0.8) < pitch(0.3));
+    }
+
+    #[test]
+    fn claude_hook_events_become_signals() {
+        let signal = |event: serde_json::Value| super::claude_signal(&event).map(|args| args.join(" "));
+        let tool = |event: &str, tool: &str| signal(json!({ "hook_event_name": event, "session_id": "s", "tool_name": tool }));
+        assert_eq!(tool("PermissionRequest", "Bash").unwrap(), "up s Bash");
+        assert_eq!(tool("PreToolUse", "AskUserQuestion").unwrap(), "up s AskUserQuestion");
+        assert_eq!(tool("PostToolUse", "Bash").unwrap(), "down s Bash");
+        assert_eq!(tool("UserPromptSubmit", "").unwrap(), "clear s");
+        assert_eq!(tool("SubagentStart", ""), None);
+        let notified = signal(json!({ "hook_event_name": "Notification", "session_id": "s", "notification_type": "permission_prompt" }));
+        assert_eq!(notified.unwrap(), "up s");
+        let stop = |last: &str| signal(json!({ "hook_event_name": "Stop", "session_id": "s", "last_assistant_message": last })).unwrap();
+        assert_eq!(stop("All done."), "stop s");
+        assert_eq!(stop("Should I push it?"), "up s asked");
+        assert_eq!(stop("**Should I push it?**\n\nI didn't run the tests.\n"), "up s asked");
+        assert_eq!(stop("Is it fast? Yes.\n\nFirst.\n\nSecond."), "stop s");
+        let box_with = |input: serde_json::Value| {
+            signal(json!({ "hook_event_name": "PostToolUse", "session_id": "s", "tool_name": "mcp__ccd_turn__wrap_up", "tool_input": input })).unwrap()
+        };
+        assert_eq!(box_with(json!({ "recap": "Done.", "ask": "Push it?" })), "up s asked");
+        assert_eq!(box_with(json!({ "recap": "Done." })), "down s mcp__ccd_turn__wrap_up");
+    }
+
+    #[test]
+    fn linking_claude_leaves_everything_else_alone() {
+        let original = json!({ "zeta": 1, "hooks": { "Stop": [{ "hooks": [{ "type": "command", "command": "mine" }] }] }, "alpha": { "b": [1] } });
+        let mut settings = original.clone();
+        super::set_claude_hooks(&mut settings, "C:\\Pet\\pet.exe", true).unwrap();
+        assert_eq!(settings["hooks"]["Stop"].as_array().unwrap().len(), 2);
+        assert_eq!(settings["hooks"]["PostToolUse"][0]["hooks"][0]["command"], "C:\\Pet\\pet.exe");
+        assert_eq!(settings["hooks"]["PreToolUse"][0]["matcher"], "AskUserQuestion|ExitPlanMode");
+        super::set_claude_hooks(&mut settings, "C:\\Pet\\pet.exe", true).unwrap(); // not twice
+        assert_eq!(settings["hooks"]["PostToolUse"].as_array().unwrap().len(), 1);
+        super::set_claude_hooks(&mut settings, "C:\\Pet\\pet.exe", false).unwrap();
+        assert_eq!(settings.to_string(), original.to_string()); // same keys, same order
+
+        let mut none = json!({ "theme": "auto" });
+        super::set_claude_hooks(&mut none, "pet.exe", true).unwrap();
+        super::set_claude_hooks(&mut none, "pet.exe", false).unwrap();
+        assert_eq!(none, json!({ "theme": "auto" }));
+        assert!(super::set_claude_hooks(&mut json!([]), "pet.exe", true).is_err());
     }
 
     #[test]

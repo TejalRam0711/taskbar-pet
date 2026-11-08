@@ -34,8 +34,16 @@ It reads `Documents/Pet/pet-tasks.json` (format: `pet-tasks.example.json`).
 - Pick it up: drag the pet and it lifts off the taskbar and dangles from your cursor; let go and it drops back
   down there. It stays where you put it, wandering only a little either side.
 - Desktop notifications at each task's `remind` offsets (`30m`, `1h`, `1d`, `1w`).
+- Claude: tick "Link to Claude" in the menu and the cat puts its hands up, says "Input needed" in its bubble and
+  gives a small meow whenever Claude is waiting on you: a permission prompt, a question, a plan to approve, or a reply
+  that ends in a question. Each session counts on its own; the hand comes down when you've answered, or click the
+  cat for "got it". No meow while it's hidden or snoozed or the mic is on, and at most once in 20 s; after a game,
+  it meows if something is still waiting. There's no way to link to a Claude account, so the tick adds hooks to
+  Claude Code's `~/.claude/settings.json` (unticking removes them, nothing else there changes): it covers Claude
+  Code on this laptop (terminal, desktop app, IDEs), not claude.ai chats or cloud sessions. Untick it before deleting
+  the pet, or Claude Code will keep trying to run it.
 - Menu (right-click the pet, or the tray icon, which Windows 11 tucks under the ^ at first): Pet (Black cat,
-  Orange cat, Tabby cat, Bunny; remembered), hide/show, snooze 1 hour, game mode, quit.
+  Orange cat, Tabby cat, Bunny; remembered), hide/show, snooze 1 hour, game mode, Link to Claude, quit.
   Every pet uses the same skeleton and animations; a skin in `src/skins.ts` only changes shapes and markings,
   and its colours are a `.skin-<id>` block in `src/styles.css`. The bunny hops instead of walking.
 

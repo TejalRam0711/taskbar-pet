@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node --test src/due.test.ts src/notes.test.ts src/timers.test.ts",
+    "test": "node --test src/due.test.ts src/notes.test.ts src/timers.test.ts src/claude.test.ts",
     "tauri": "tauri"
   },
   "dependencies": {

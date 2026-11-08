@@ -80,7 +80,7 @@ export function createCat(el: HTMLElement, mover: Mover, skin: SkinId = 'black')
   let activity: Activity = 'sleep', mood: Mood = 'sleep', engaged = false;
   let walking = false, timer = 0, scribbleTimer = 0, nudgeTimer = 0;
   let focus: 'work' | 'nap' | null = null, notesOpen = false, perked = false, nudging = false, held = false;
-  let carried = false, catching = false, catchTimer = 0, purrTimer = 0;
+  let carried = false, catching = false, catchTimer = 0, purrTimer = 0, perkTimer = 0;
 
   const show = (a: Activity) => {
     activity = a;
@@ -217,11 +217,15 @@ export function createCat(el: HTMLElement, mover: Mover, skin: SkinId = 'black')
       clearTimeout(timer);
       timer = window.setTimeout(settle, 600);
     },
-    // Something is being dragged over it: up on its hind legs, reaching for it like a cartoon cat after a toy.
+    // Something is being dragged over it, or Claude needs you: up on its hind legs, reaching like a cartoon cat
+    // after a toy. Claude can wait for hours, so after a while it holds the pose instead of animating it.
     perk(on: boolean) {
       if (on === perked) return;
       perked = on;
       svg.classList.toggle('reaching', on);
+      svg.classList.remove('still');
+      clearTimeout(perkTimer);
+      if (on) perkTimer = window.setTimeout(() => svg.classList.add('still'), 20_000);
       settle();
     },
     // Dropped on it: it catches it and hugs it to its chest for a moment.
