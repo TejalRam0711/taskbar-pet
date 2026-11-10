@@ -106,8 +106,8 @@ fn button_down() -> bool {
     false
 }
 
-// The tray menu, also shown when you right-click the pet, and its game mode and Claude ticks.
-struct PetMenu(Menu<Wry>, CheckMenuItem<Wry>, CheckMenuItem<Wry>);
+// The tray menu, also shown when you right-click the pet, and its game mode, Claude and stay ticks.
+struct PetMenu(Menu<Wry>, CheckMenuItem<Wry>, CheckMenuItem<Wry>, CheckMenuItem<Wry>);
 
 #[tauri::command]
 fn pet_menu(window: WebviewWindow, menu: tauri::State<PetMenu>) -> Result<(), String> {
@@ -119,6 +119,12 @@ fn pet_menu(window: WebviewWindow, menu: tauri::State<PetMenu>) -> Result<(), St
 fn set_game_mode(menu: tauri::State<PetMenu>, on: bool) {
     GAME_MODE.store(on, SeqCst);
     let _ = menu.1.set_checked(on);
+}
+
+// "Stay where I put it" is the page's to remember too; it sets the tick at start.
+#[tauri::command]
+fn set_stay(menu: tauri::State<PetMenu>, on: bool) {
+    let _ = menu.3.set_checked(on);
 }
 
 // Dictation with Whisper (whisper.cpp, run on this laptop; scripts/get-whisper.ps1 puts it in the app's data
@@ -700,7 +706,7 @@ pub fn run() {
         .manage(WalkId::default())
         .manage(Dictation::default())
         .invoke_handler(tauri::generate_handler![
-            set_hit_areas, walk_to, halt, drag, pet_menu, set_game_mode, dictate, idle_ms, play_meow
+            set_hit_areas, walk_to, halt, drag, pet_menu, set_game_mode, set_stay, dictate, idle_ms, play_meow
         ])
         .setup(|app| {
             let toggle = MenuItem::with_id(app, "toggle", "Hide / show pet", true, None::<&str>)?;
@@ -711,12 +717,16 @@ pub fn run() {
             let claude = CheckMenuItem::with_id(app, "claude", "Link to Claude", true, linked, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             // Skins: ids match SkinId in skins.ts; the page swaps the drawing and remembers the choice.
-            let skins = [("black", "Black cat"), ("orange", "Orange cat"), ("tabby", "Tabby cat"), ("bunny", "Bunny")]
-                .map(|(id, name)| MenuItem::with_id(app, format!("skin:{id}"), name, true, None::<&str>));
-            let [a, b, c, d] = skins;
-            let pet = Submenu::with_items(app, "Pet", true, &[&a?, &b?, &c?, &d?])?;
-            let menu = Menu::with_items(app, &[&pet, &toggle, &snooze, &game, &claude, &quit])?;
-            app.manage(PetMenu(menu.clone(), game, claude));
+            let skins = [
+                ("black", "Black cat"), ("orange", "Orange cat"), ("tabby", "Tabby cat"), ("bunny", "Bunny"),
+                ("ink", "Ink cat"), ("doodle", "Doodle cat"), ("lcd", "Tamagotchi"),
+            ]
+            .map(|(id, name)| MenuItem::with_id(app, format!("skin:{id}"), name, true, None::<&str>));
+            let [a, b, c, d, e, f, g] = skins;
+            let pet = Submenu::with_items(app, "Pet", true, &[&a?, &b?, &c?, &d?, &e?, &f?, &g?])?;
+            let stay = CheckMenuItem::with_id(app, "stay", "Stay where I put it", true, false, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&pet, &toggle, &snooze, &stay, &game, &claude, &quit])?;
+            app.manage(PetMenu(menu.clone(), game, claude, stay));
             // Handles the right-click menu too: Tauri passes every menu event to this handler.
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -731,6 +741,9 @@ pub fn run() {
                         let on = app.state::<PetMenu>().1.is_checked().unwrap_or(true);
                         GAME_MODE.store(on, SeqCst);
                         let _ = app.emit("game-mode-setting", on);
+                    }
+                    "stay" => {
+                        let _ = app.emit("stay-setting", app.state::<PetMenu>().3.is_checked().unwrap_or(false));
                     }
                     // The tick has already flipped itself; if the settings couldn't be changed, it flips back.
                     "claude" => {

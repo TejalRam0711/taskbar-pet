@@ -69,6 +69,40 @@ body {
   --pet-outline: drop-shadow(0.6px 0 0 #7a6858) drop-shadow(-0.6px 0 0 #7a6858) drop-shadow(0 0.6px 0 #7a6858) drop-shadow(0 -0.6px 0 #7a6858);
 }
 
+.cat.skin-ink {
+  --fur: #1b1a19; --fur-far: #4a4743; --rim: #5e5a54; --ear: #4f4944; --eye: #e2b64c; --eye-ring: #8a6a1e;
+  --nose: #b3352b; --whisker: #d8d2c4; --belly: #f3eee2; --paw: #f3eee2; --shut: #d8d2c4;
+  --pet-outline: url(#ink-edge) drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.55));
+}
+.cat.skin-ink .seal rect { fill: #b3352b; }
+.cat.skin-ink .seal path { fill: none; stroke: #f3eee2; stroke-width: 0.55; stroke-linecap: round; }
+
+/* doodle: one black line around white, also inside where parts overlap (limbs get their own outline) */
+.cat.skin-doodle {
+  --fur: #fffefa; --fur-far: #e4e1da; --ear: #f5c2cd; --eye: #141414; --eye-ring: #141414; --nose: #141414;
+  --whisker: #141414; --belly: #fffefa; --paw: #fffefa; --shut: #141414;
+  --pet-outline: drop-shadow(0.5px 0 0 #141414) drop-shadow(-0.5px 0 0 #141414) drop-shadow(0 0.5px 0 #141414) drop-shadow(0 -0.5px 0 #141414);
+}
+.cat.skin-doodle :is(.fur, .ear-in) { stroke: #141414; stroke-width: 1.2; stroke-linejoin: round; }
+.cat.skin-doodle :is(.head-lie > .fur, .leg .fur) { stroke: none; } /* the neck lying down, the thighs walking */
+.cat.skin-doodle :is(.legs-sit, .legs-hang, .arms-up) {
+  filter: drop-shadow(0.6px 0 0 #141414) drop-shadow(-0.6px 0 0 #141414) drop-shadow(0 0.6px 0 #141414) drop-shadow(0 -0.6px 0 #141414);
+}
+.cat.skin-doodle :is(.rim, .pupil, .glint) { display: none; }
+.cat.skin-doodle .iris { rx: 2px; ry: 2.4px; }
+.cat.skin-doodle .blush { opacity: 0.8; rx: 2.8px; ry: 1.5px; }
+.cat.skin-doodle .mouth { stroke: #141414; stroke-width: 0.9; }
+.cat.skin-doodle .whiskers { stroke-width: 0.6; opacity: 1; }
+
+/* Tamagotchi: dark dots on a greenish LCD, its "off" dots faintly showing; one frame of dots at a time (cat.ts) */
+.cat.skin-lcd { --pet-outline: none; }
+.cat.skin-lcd .screen { fill: #b7c2a6; stroke: #4f5b47; stroke-width: 1.4; }
+.cat.skin-lcd #lcd-off rect { fill: #a9b498; }
+.cat.skin-lcd .px { fill: #2b3527; visibility: hidden; }
+.cat.skin-lcd .px.on { visibility: visible; }
+.cat.skin-lcd:is(.urgent, .happy) :is(.bang, .heart),
+.cat.skin-lcd.sleep + .zzz-bubble { display: none; } /* drawn in dots instead */
+
 /* bunny: round dark eyes, ears folded back while it sleeps, and it hops: front legs together, then back legs */
 .cat.skin-bunny .pupil { rx: 2.6px; ry: 3.3px; }
 .cat.skin-bunny .ears { transform-origin: 0 -10px; transition: transform 0.6s ease-out; }

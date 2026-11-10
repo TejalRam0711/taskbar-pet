@@ -3,7 +3,7 @@
 // same face so it's always the same animal. styles.css animates the parts by class and colours them per skin
 // (.skin-<id>), so a skin only swaps shapes and markings here and must keep the classes and joints.
 
-export type SkinId = 'black' | 'orange' | 'tabby' | 'bunny';
+export type SkinId = 'black' | 'orange' | 'tabby' | 'bunny' | 'ink' | 'doodle' | 'lcd';
 
 type Rigs<T> = { lie?: T; sit?: T; stand?: T };
 type Skin = {
@@ -16,19 +16,23 @@ type Skin = {
   marks?: Rigs<string>; // markings over the body in each rig
   bands?: boolean; // ringed tail
   puff?: Rigs<[number, number, number]>; // a cotton-ball tail (cx, cy, r) instead of a cat's tail
+  defs?: string; // SVG filters the skin's styles use
+  deco?: string; // drawn beside the pet, not part of it
   earTop: number; // y of the ear tips when sitting, so the speech bubble clears them
 };
 
 const scaleAbout = (x: number, y: number, sx: number, sy: number) =>
   `translate(${x} ${y}) scale(${sx} ${sy}) translate(${-x} ${-y})`;
 
+const BELLY: Rigs<string> = {
+  lie: `<path class="belly" d="M84 63 C87 64 89.5 68 89 72 C88 75 86 76.5 84 77Z"/>`,
+  sit: `<path class="belly" d="M75.5 54 C73.5 60 74 68 76.5 73 L83.5 73 C86 68 86.5 60 84.5 54Z"/>`,
+  stand: `<path class="belly" d="M60 60.5 C67 61.6 75 61.2 80 60 C84 59 86.5 56.5 87.5 53 C85 56 80 58 74 58.6 C68 59.2 63 59.4 60 60.5Z"/>`,
+};
 const STRIPES: Rigs<string> = {
-  lie: `<path class="stripe" d="M46 60.5 Q47 64 46 67 M53 60 Q54 63.5 53 66.5 M60 59.8 Q61 63 60 66 M67 59.5 Q68 62.5 67 65.5"/>
-    <path class="belly" d="M84 63 C87 64 89.5 68 89 72 C88 75 86 76.5 84 77Z"/>`,
-  sit: `<path class="belly" d="M75.5 54 C73.5 60 74 68 76.5 73 L83.5 73 C86 68 86.5 60 84.5 54Z"/>
-    <path class="stripe" d="M70.5 60 Q72.5 61 73.5 63.5 M69.5 65 Q72 66 73 68.5 M89.5 60 Q87.5 61 86.5 63.5 M90.5 65 Q88 66 87 68.5"/>`,
-  stand: `<path class="stripe" d="M56 45.5 Q57 48.5 56 51 M62 45 Q63 48 62 50.5 M68 44.5 Q69 47.5 68 50 M74 44 Q75 47 74 49.5"/>
-    <path class="belly" d="M60 60.5 C67 61.6 75 61.2 80 60 C84 59 86.5 56.5 87.5 53 C85 56 80 58 74 58.6 C68 59.2 63 59.4 60 60.5Z"/>`,
+  lie: `<path class="stripe" d="M46 60.5 Q47 64 46 67 M53 60 Q54 63.5 53 66.5 M60 59.8 Q61 63 60 66 M67 59.5 Q68 62.5 67 65.5"/>${BELLY.lie}`,
+  sit: `${BELLY.sit}<path class="stripe" d="M70.5 60 Q72.5 61 73.5 63.5 M69.5 65 Q72 66 73 68.5 M89.5 60 Q87.5 61 86.5 63.5 M90.5 65 Q88 66 87 68.5"/>`,
+  stand: `<path class="stripe" d="M56 45.5 Q57 48.5 56 51 M62 45 Q63 48 62 50.5 M68 44.5 Q69 47.5 68 50 M74 44 Q75 47 74 49.5"/>${BELLY.stand}`,
 };
 const MUZZLE = `<ellipse class="belly" cx="0" cy="6.1" rx="5" ry="3.5"/>`;
 
@@ -73,6 +77,34 @@ export const SKINS: Record<SkinId, Skin> = {
     puff: { lie: [35, 71, 5.2], sit: [64, 73, 4.6], stand: [45, 49, 5] },
     earTop: 1,
   },
+  ink: {
+    name: 'Ink cat',
+    // sumi-e: a black cat in brush ink, the paper left bare for its chest, muzzle and paws; rough brush edges
+    // (the filter) and the painter's red seal
+    face: MUZZLE,
+    marks: BELLY,
+    defs: `<filter id="ink-edge" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="7"/>
+      <feDisplacementMap in="SourceGraphic" scale="1.6" xChannelSelector="R" yChannelSelector="G"/></filter>`,
+    deco: `<g class="seal"><rect x="9" y="67" width="8" height="8" rx="0.6"/><path d="M11 69.3 H15 M13 68.8 V73.6 M11.2 71.4 H14.8 M11.3 73.4 L12.6 72.2 M14.7 73.4 L13.4 72.2"/></g>`,
+    earTop: 15,
+  },
+  doodle: {
+    name: 'Doodle cat',
+    // a notebook doodle (Bongo Cat style): white, one thick black line, dot eyes; styles.css draws the lines.
+    // Chubby: a wide round head, small rounded ears and a round body
+    ears: 'M-11.5 -4 Q-13 -11.5 -11.6 -16.4 Q-10.8 -18 -9.4 -17 Q-6.2 -14 -4 -10.5Z M11.5 -4 Q13 -11.5 11.6 -16.4 Q10.8 -18 9.4 -17 Q6.2 -14 4 -10.5Z',
+    earsIn: 'M-10.4 -6 Q-11.2 -11.4 -10.4 -14.6 Q-7.8 -12.4 -6 -10.2Z M10.4 -6 Q11.2 -11.4 10.4 -14.6 Q7.8 -12.4 6 -10.2Z',
+    skull: 'M-14.5 0 C-15 -8.5 -8 -12 0 -12 C8 -12 15 -8.5 14.5 0 C14.3 6.6 7.8 10.8 0 10.9 C-7.8 10.8 -14.3 6.6 -14.5 0Z',
+    face: '',
+    body: {
+      lie: scaleAbout(60, 78, 1.08, 1.3),
+      sit: scaleAbout(80, 78, 1.4, 1.08),
+      stand: scaleAbout(66, 45, 1.12, 1.42),
+    },
+    earTop: 18,
+  },
+  lcd: { name: 'Tamagotchi', earTop: 34 }, // its own drawing: drawLcd() below
 };
 
 const EARS = 'M-11.6 -4 Q-14 -14 -12.6 -20.5 Q-12 -22.6 -10.4 -21.2 Q-6.5 -17 -3.5 -11Z M11.6 -4 Q14 -14 12.6 -20.5 Q12 -22.6 10.4 -21.2 Q6.5 -17 3.5 -11Z';
@@ -114,11 +146,96 @@ const puff = (s: Skin, rig: keyof Rigs<unknown>) => {
   return p ? `<circle class="fur puff" cx="${p[0]}" cy="${p[1]}" r="${p[2]}"/>` : '';
 };
 
+// ---- Tamagotchi: a pixel cat on a 32×16-dot LCD like the original's, with the "off" dots showing. It has no
+// rig: each pose is two frames of dots, and showLcdFrame() (on cat.ts's 2.5 fps tick) shows the one that matches
+// the pet's state classes, flipping between the two like the toy does. ----
+
+const LCD = { pitch: 2.6, dot: 2.2, x: 18.6, y: 35.8 }; // x centres the screen on 60, where .flip mirrors
+type Part = [string[], number, number]; // rows ('#' on, '-' turns off what's under it), column, row
+
+const pxHead = (eyes: string[], mid: string, mouth: string) =>
+  ['#...........#', '##.........##', '#.#.......#.#', '#..#######..#', '#...........#', ...eyes, mid, mouth, '..#########..'];
+const OPEN = ['#..##...##..#', '#..##...##..#'], SHUT = ['#...........#', '#.###...###.#'], HAPPY = ['#...#...#...#', '#..#.#.#.#..#'];
+const NOSE = '#.....#.....#', WIDE = '#....###....#', SMILE = '.#...#.#...#.', AH = '.#...###...#.';
+const SIT = ['..#.......#..', '.#.........#.', '.#..#...#..#.', '.#..#...#..#.', '..##.###.##..'];
+const HUG = ['..#.......#..', '.#.#######.#.', '.##.......##.', '.#.#######.#.', '..##.###.##..'];
+const DANGLE = ['..#.......#..', '.#.........#.', '..#.#...#.#..', '..#.#...#.#..', '...#.....#...'];
+const LOAF = ['..###############..', '.#...............#.', '#.................#', '#.................#', '#.................#', '.#################.'];
+const TAIL = ['...#', '..#.', '.#..', '#...'], WAG = ['..#.', '..#.', '.#..', '#...'];
+const Z = ['###', '.#.', '###'], BALL = ['.#.', '#.#', '.#.'], HEART = ['.#.#.', '#####', '.###.', '..#..'];
+const PAPER = ['####', '#..#', '####'], BANG = ['#', '#', '#', '.', '#'];
+
+const X = 13; // the cat's left column
+const sitting = (h: string[], body = SIT, tail: string[] | null = TAIL, dy = 0): Part[] =>
+  [[h, X, 1 + dy], [body, X, 11 + dy], ...(tail ? [[tail, X + 12, 11 + dy] as Part] : [])];
+const lying = (h: string[]): Part[] =>
+  [[LOAF, X - 3, 10], [Array(6).fill('-'.repeat(13)), X, 10], [h, X, 6], [['.##', '#..'], X + 16, 13]];
+const awake = pxHead(OPEN, NOSE, SMILE), asleep = pxHead(SHUT, NOSE, SMILE), oh = pxHead(OPEN, NOSE, AH);
+const reach = (lift: number): Part[] =>
+  [...sitting(oh), [['#..', '.#.', '..#'], X - 2, 8 - lift], [['..#', '.#.', '#..'], X + 12, 8 - lift], [['#', '#'], X - 2, 7 - lift], [['#', '#'], X + 14, 7 - lift]];
+
+const FRAMES: Record<string, [Part[], Part[]]> = {
+  sleep: [[...lying(asleep), [Z, X + 14, 5]], [...lying(asleep), [Z, X + 14, 5], [Z, X + 16, 1]]],
+  awake: [lying(awake), lying(awake)],
+  urgent: [[...lying(awake), [BANG, X + 16, 3]], lying(awake)],
+  sit: [sitting(awake), sitting(awake, SIT, WAG)],
+  talk: [sitting(awake), sitting(oh)],
+  notes: [[...sitting(awake), [PAPER, X - 5, 13], [['.#', '#.'], X - 2, 12]], [...sitting(awake), [PAPER, X - 5, 13], [['##'], X - 2, 12]]],
+  walk: [sitting(awake), sitting(awake, SIT, WAG, -1)],
+  play: [[...sitting(awake), [BALL, X - 4, 13]], [...sitting(awake, SIT, WAG), [BALL, X - 6, 12]]],
+  reach: [reach(0), reach(2)],
+  yawn: [sitting(pxHead(SHUT, WIDE, AH)), sitting(pxHead(SHUT, WIDE, AH))],
+  happy: [[...sitting(pxHead(HAPPY, NOSE, SMILE)), [HEART, X + 14, 1]], [...sitting(pxHead(HAPPY, NOSE, SMILE), SIT, WAG), [HEART, X + 14, 0]]],
+  hug: [sitting(awake, HUG), sitting(awake, HUG, WAG)],
+  carried: [sitting(oh, DANGLE, null), sitting(oh, DANGLE, null).map(([r, x, y]): Part => [r, x + 1, y])],
+};
+
+// One path of square dots per frame.
+const dots = (parts: Part[]) => {
+  const on = new Set<string>();
+  for (const [rows, x, y] of parts)
+    rows.forEach((row, j) => [...row].forEach((c, i) => (c === '#' ? on.add(`${x + i},${y + j}`) : c === '-' && on.delete(`${x + i},${y + j}`))));
+  return [...on]
+    .map((k) => k.split(',').map(Number))
+    .filter(([i, j]) => i >= 0 && i < 32 && j >= 0 && j < 16)
+    .map(([i, j]) => `M${(LCD.x + i * LCD.pitch).toFixed(1)} ${(LCD.y + j * LCD.pitch).toFixed(1)}h${LCD.dot}v${LCD.dot}h-${LCD.dot}Z`)
+    .join('');
+};
+
+const drawLcd = () => {
+  const w = 31 * LCD.pitch + LCD.dot, h = 15 * LCD.pitch + LCD.dot;
+  const frames = Object.entries(FRAMES).flatMap(([name, pair]) => pair.map((parts, k) => `<path class="px" data-f="${name}-${k}" d="${dots(parts)}"/>`));
+  return `
+<svg viewBox="0 0 120 80" class="cat sleep skin-lcd" aria-hidden="true">
+  <defs><pattern id="lcd-off" x="${LCD.x}" y="${LCD.y}" width="${LCD.pitch}" height="${LCD.pitch}" patternUnits="userSpaceOnUse"><rect width="${LCD.dot}" height="${LCD.dot}"/></pattern></defs>
+  <rect class="screen" x="${LCD.x - 2}" y="${LCD.y - 2}" width="${w + 4}" height="${h + 4}" rx="3"/>
+  <rect class="off-dots" x="${LCD.x}" y="${LCD.y}" width="${w}" height="${h}" fill="url(#lcd-off)"/>
+  <g class="flip">${frames.join('')}</g>
+</svg>`;
+};
+
+// The frame for the pet's state: what it's doing, then what it's feeling; n flips between the two frames.
+const lcdFrame = (c: DOMTokenList, n: number) => {
+  const pose = c.contains('carried') ? 'carried' : c.contains('caught') ? 'hug' : c.contains('reaching') ? 'reach'
+    : c.contains('yawning') ? 'yawn' : c.contains('happy') ? 'happy' : c.contains('sleep') ? 'sleep'
+    : c.contains('walk') ? 'walk' : c.contains('play') ? 'play'
+    : c.contains('sit') ? (c.contains('notes') ? 'notes' : c.contains('talking') ? 'talk' : 'sit')
+    : c.contains('urgent') ? 'urgent' : 'awake';
+  return `${pose}-${n % 2}`;
+};
+export function showLcdFrame(svg: SVGSVGElement, n: number) {
+  const want = svg.querySelector(`[data-f="${lcdFrame(svg.classList, n)}"]`);
+  svg.querySelectorAll('.px.on').forEach((p) => p !== want && p.classList.remove('on'));
+  want?.classList.add('on');
+}
+
 export function drawPet(id: SkinId): string {
+  if (id === 'lcd') return drawLcd();
   const s = SKINS[id];
   const h = head(s);
   return `
 <svg viewBox="0 0 120 80" class="cat sleep skin-${id}" aria-hidden="true">
+  ${s.defs ?? ''}
   <g class="flip">
     <g class="rig lie">
       ${tail(s, 'tail-lie', 'M36 73 C26 79 42 81 58 80 C65 79.5 70 79 75 77.5')}
@@ -206,6 +323,7 @@ export function drawPet(id: SkinId): string {
       </g>
     </g>
   </g>
+  ${s.deco ?? ''}
   <text class="bang" x="104" y="34">!</text>
   <path class="heart" d="M100 30 c-2 -3 -6 -1 -4 2 l4 4 l4 -4 c2 -3 -2 -5 -4 -2Z"/>
 </svg>`;

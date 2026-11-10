@@ -1,5 +1,5 @@
 import type { Mood } from './due';
-import { drawPet, type SkinId } from './skins';
+import { drawPet, showLcdFrame, type SkinId } from './skins';
 
 // What the pet does and when. The drawing and its skins are in skins.ts.
 
@@ -163,7 +163,14 @@ export function createCat(el: HTMLElement, mover: Mover, skin: SkinId = 'black')
       d.blink = '1';
       setTimeout(() => (d.blink = '0'), 150);
     }
+    lcdFrame();
   }, 400);
+  // The Tamagotchi skin draws each pose as dots (skins.ts): its frames flip on the tick, and change pose as soon
+  // as the state classes do.
+  const lcdFrame = () => svg.classList.contains('skin-lcd') && showLcdFrame(svg, n);
+  const poses = new MutationObserver(lcdFrame);
+  poses.observe(svg, { attributes: true, attributeFilter: ['class'] });
+  lcdFrame();
 
   return {
     // Swap the drawing for another skin, keeping what the pet is doing (its state is in the classes).
@@ -174,6 +181,9 @@ export function createCat(el: HTMLElement, mover: Mover, skin: SkinId = 'black')
       next.setAttribute('class', svg.getAttribute('class')!.replace(/skin-\w+/, `skin-${id}`));
       svg.replaceWith(next);
       svg = next;
+      poses.disconnect();
+      poses.observe(svg, { attributes: true, attributeFilter: ['class'] });
+      lcdFrame();
     },
     setMood(m: Mood) {
       mood = m;

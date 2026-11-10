@@ -31,12 +31,13 @@ let wa = { x: 0, y: 0, w: 0, h: 0 }; // primary screen's work area, physical px
 let scale = 1, catX = 0, winW = COMPACT.w; // catX = cat's left edge on screen, CSS px from the work area's left
 let home = 0; // where you last put it (same units); it only wanders within ROAM of here
 const ROAM = 200;
+let stay = localStorage.getItem('stay') === 'true'; // Menu › "Stay where I put it": no strolls at all
 
 // Anywhere along the taskbar with the whole window on screen.
 const bounds = (): [number, number] => [CAT_LEFT, wa.w / scale - (COMPACT.w - CAT_LEFT)];
 const mover: Mover = {
   x: () => catX,
-  range: () => [Math.max(bounds()[0], home - ROAM), Math.min(bounds()[1], home + ROAM)],
+  range: () => (stay ? [home, home] : [Math.max(bounds()[0], home - ROAM), Math.min(bounds()[1], home + ROAM)]),
   async go(to, ms) {
     const arrived = await invoke<boolean>('walk_to', { x: wa.x + Math.round((to - CAT_LEFT) * scale), ms: Math.round(ms) });
     catX = arrived ? to : await catXFromWindow();
@@ -645,6 +646,8 @@ listen<string>('skin', ({ payload }) => {
 // Menu › "Hide during games / fullscreen": remembered here and handed back to Rust at start.
 listen<boolean>('game-mode-setting', ({ payload }) => localStorage.setItem('gameMode', String(payload)));
 invoke('set_game_mode', { on: localStorage.getItem('gameMode') !== 'false' }).catch(console.error);
+listen<boolean>('stay-setting', ({ payload }) => localStorage.setItem('stay', String((stay = payload))));
+invoke('set_stay', { on: stay }).catch(console.error);
 // Game mode (Rust hides the window while something is fullscreen): no walks, and the bubble closes.
 listen<boolean>('game-mode', ({ payload }) => {
   gameMode = payload;

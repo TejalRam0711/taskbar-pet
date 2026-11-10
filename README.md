@@ -32,7 +32,8 @@ It reads `Documents/Pet/pet-tasks.json` (format: `pet-tasks.example.json`).
 - Game mode: hides while anything is fullscreen on the main screen (games, presentations, F11 video), then comes
   back, unless you hid it from the menu. Switch it off with "Hide during games / fullscreen" in the menu.
 - Pick it up: drag the pet and it lifts off the taskbar and dangles from your cursor; let go and it drops back
-  down there. It stays where you put it, wandering only a little either side.
+  down there. It stays where you put it, wandering only a little either side; tick "Stay where I put it" in the
+  menu and it doesn't wander at all (it still sits up, plays and naps on the spot).
 - Desktop notifications at each task's `remind` offsets (`30m`, `1h`, `1d`, `1w`).
 - Claude: tick "Link to Claude" in the menu and the cat puts its hands up, says "Input needed" in its bubble and
   gives a small meow whenever Claude is waiting on you: a permission prompt, a question, a plan to approve, or a reply
@@ -43,9 +44,13 @@ It reads `Documents/Pet/pet-tasks.json` (format: `pet-tasks.example.json`).
   Code on this laptop (terminal, desktop app, IDEs), not claude.ai chats or cloud sessions. Untick it before deleting
   the pet, or Claude Code will keep trying to run it.
 - Menu (right-click the pet, or the tray icon, which Windows 11 tucks under the ^ at first): Pet (Black cat,
-  Orange cat, Tabby cat, Bunny; remembered), hide/show, snooze 1 hour, game mode, Link to Claude, quit.
+  Orange cat, Tabby cat, Bunny, Ink cat, Doodle cat, Tamagotchi; remembered), hide/show, snooze 1 hour, stay where I put it, game mode, Link to
+  Claude, quit.
   Every pet uses the same skeleton and animations; a skin in `src/skins.ts` only changes shapes and markings,
-  and its colours are a `.skin-<id>` block in `src/styles.css`. The bunny hops instead of walking.
+  and its colours are a `.skin-<id>` block in `src/styles.css`. The bunny hops instead of walking. The ink cat is
+  sumi-e style (brush-rough edges from an SVG filter, bare paper for its chest, a red seal); the doodle cat is
+  a chubby Bongo Cat style (white, one black line, dot eyes). The Tamagotchi is the exception: a pixel cat on a
+  32×16-dot LCD with no rig, two frames of dots per pose (`FRAMES` in `skins.ts`), flipped on the 2.5 fps tick.
 
 ## Adding to-dos
 
