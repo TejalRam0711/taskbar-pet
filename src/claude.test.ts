@@ -22,6 +22,14 @@ test('the fallback notification adds no second alert and goes with the tool', ()
   assert.equal(waiting.size, 0);
 });
 
+test("a wait you're already looking at raises the hand without a meow", () => {
+  const waiting = new Set<string>();
+  assert.equal(applySignal(waiting, ['seen', 'a', 'Bash']), false);
+  assert.equal(waiting.size, 1);
+  applySignal(waiting, ['down', 'a', 'Bash']);
+  assert.equal(waiting.size, 0);
+});
+
 test('each session alerts on its own', () => {
   const waiting = new Set<string>();
   assert.equal(applySignal(waiting, ['up', 'a', 'Bash']), true);

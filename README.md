@@ -38,7 +38,9 @@ It reads `Documents/Pet/pet-tasks.json` (format: `pet-tasks.example.json`).
 - Claude: tick "Link to Claude" in the menu and the cat puts its hands up, says "Input needed" in its bubble and
   gives a small meow whenever Claude is waiting on you: a permission prompt, a question, a plan to approve, or a reply
   that ends in a question. Each session counts on its own; the hand comes down when you've answered, or click the
-  cat for "got it". No meow while it's hidden or snoozed or the mic is on, and at most once in 20 s; after a game,
+  cat for "got it". No meow when you're already in the app running that session (the desktop app, terminal or IDE
+  whose window is in front; the hook checks it's one of its parent processes), while the pet is hidden or snoozed or
+  the mic is on, and at most once in 20 s; after a game,
   it meows if something is still waiting. There's no way to link to a Claude account, so the tick adds hooks to
   Claude Code's `~/.claude/settings.json` (unticking removes them, nothing else there changes): it covers Claude
   Code on this laptop (terminal, desktop app, IDEs), not claude.ai chats or cloud sessions. Untick it before deleting

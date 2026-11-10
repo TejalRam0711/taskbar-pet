@@ -564,9 +564,49 @@ fn claude_hook() {
     let mut input = String::new();
     let _ = std::io::stdin().read_to_string(&mut input);
     let signal = serde_json::from_str(&input).ok().and_then(|event| claude_signal(&event));
-    if let (Some(signal), Ok(exe)) = (signal, std::env::current_exe()) {
+    if let (Some(mut signal), Ok(exe)) = (signal, std::env::current_exe()) {
+        if signal[0] == "up" && looking_at_session() {
+            signal[0] = "seen".into(); // you can see it already: the pet waits too, without a meow
+        }
         let _ = std::process::Command::new(exe).arg(CLAUDE_SIGNAL).args(signal).status();
     }
+}
+
+// Whether the window you're using belongs to the app running this Claude session: then it's one of this hook's
+// parent processes (the desktop app, or the terminal or IDE running Claude Code). The desktop app can't tell which
+// of its sessions you have open, so any of them counts.
+#[cfg(windows)]
+fn looking_at_session() -> bool {
+    use windows::Win32::{Foundation::CloseHandle, System::Diagnostics::ToolHelp::*, UI::WindowsAndMessaging::*};
+    unsafe {
+        let mut using = 0u32;
+        GetWindowThreadProcessId(GetForegroundWindow(), Some(&mut using));
+        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return false };
+        let mut parents = std::collections::HashMap::new();
+        let mut entry = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut more = Process32FirstW(snapshot, &mut entry).is_ok();
+        while more {
+            parents.insert(entry.th32ProcessID, entry.th32ParentProcessID);
+            more = Process32NextW(snapshot, &mut entry).is_ok();
+        }
+        let _ = CloseHandle(snapshot);
+        let mut pid = std::process::id();
+        for _ in 0..16 {
+            match parents.get(&pid) {
+                Some(&parent) if parent != pid => pid = parent,
+                _ => break,
+            }
+            if pid == using {
+                return using != 0;
+            }
+        }
+        false
+    }
+}
+
+#[cfg(not(windows))]
+fn looking_at_session() -> bool {
+    false
 }
 
 // What a hook event means for the pet: [kind, session, tool], explained in claude.ts. In the desktop app a closing
