@@ -46,12 +46,12 @@ It reads `Documents/Pet/pet-tasks.json` (format: `pet-tasks.example.json`).
   Code on this laptop (terminal, desktop app, IDEs), not claude.ai chats or cloud sessions. Untick it before deleting
   the pet, or Claude Code will keep trying to run it.
 - Menu (right-click the pet, or the tray icon, which Windows 11 tucks under the ^ at first): Pet (Black cat,
-  Orange cat, Tabby cat, Bunny, Ink cat, Doodle cat, Tamagotchi; remembered), hide/show, snooze 1 hour, stay where I put it, game mode, Link to
+  Orange cat, Tabby cat, Bunny, Ink cat, Doodle cat, LCD pet; remembered), hide/show, snooze 1 hour, stay where I put it, game mode, Link to
   Claude, quit.
   Every pet uses the same skeleton and animations; a skin in `src/skins.ts` only changes shapes and markings,
   and its colours are a `.skin-<id>` block in `src/styles.css`. The bunny hops instead of walking. The ink cat is
   sumi-e style (brush-rough edges from an SVG filter, bare paper for its chest, a red seal); the doodle cat is
-  a chubby Bongo Cat style (white, one black line, dot eyes). The Tamagotchi is the exception: a pixel cat on a
+  a chubby Bongo Cat style (white, one black line, dot eyes). The LCD pet is the exception: a Tamagotchi-style pixel cat on a
   32×16-dot LCD with no rig, two frames of dots per pose (`FRAMES` in `skins.ts`), flipped on the 2.5 fps tick.
 
 ## Adding to-dos

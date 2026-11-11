@@ -94,7 +94,7 @@ body {
 .cat.skin-doodle .mouth { stroke: #141414; stroke-width: 0.9; }
 .cat.skin-doodle .whiskers { stroke-width: 0.6; opacity: 1; }
 
-/* Tamagotchi: dark dots on a greenish LCD, its "off" dots faintly showing; one frame of dots at a time (cat.ts) */
+/* LCD pet: dark dots on a greenish LCD, its "off" dots faintly showing; one frame of dots at a time (cat.ts) */
 .cat.skin-lcd { --pet-outline: none; }
 .cat.skin-lcd .screen { fill: #b7c2a6; stroke: #4f5b47; stroke-width: 1.4; }
 .cat.skin-lcd #lcd-off rect { fill: #a9b498; }

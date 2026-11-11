@@ -104,7 +104,7 @@ export const SKINS: Record<SkinId, Skin> = {
     },
     earTop: 18,
   },
-  lcd: { name: 'Tamagotchi', earTop: 34 }, // its own drawing: drawLcd() below
+  lcd: { name: 'LCD pet', earTop: 34 }, // its own drawing: drawLcd() below
 };
 
 const EARS = 'M-11.6 -4 Q-14 -14 -12.6 -20.5 Q-12 -22.6 -10.4 -21.2 Q-6.5 -17 -3.5 -11Z M11.6 -4 Q14 -14 12.6 -20.5 Q12 -22.6 10.4 -21.2 Q6.5 -17 3.5 -11Z';
@@ -146,7 +146,7 @@ const puff = (s: Skin, rig: keyof Rigs<unknown>) => {
   return p ? `<circle class="fur puff" cx="${p[0]}" cy="${p[1]}" r="${p[2]}"/>` : '';
 };
 
-// ---- Tamagotchi: a pixel cat on a 32×16-dot LCD like the original's, with the "off" dots showing. It has no
+// ---- LCD pet: a pixel cat on a 32×16-dot LCD like a Tamagotchi's, with the "off" dots showing. It has no
 // rig: each pose is two frames of dots, and showLcdFrame() (on cat.ts's 2.5 fps tick) shows the one that matches
 // the pet's state classes, flipping between the two like the toy does. ----
 

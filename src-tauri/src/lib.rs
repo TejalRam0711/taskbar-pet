@@ -759,7 +759,7 @@ pub fn run() {
             // Skins: ids match SkinId in skins.ts; the page swaps the drawing and remembers the choice.
             let skins = [
                 ("black", "Black cat"), ("orange", "Orange cat"), ("tabby", "Tabby cat"), ("bunny", "Bunny"),
-                ("ink", "Ink cat"), ("doodle", "Doodle cat"), ("lcd", "Tamagotchi"),
+                ("ink", "Ink cat"), ("doodle", "Doodle cat"), ("lcd", "LCD pet"),
             ]
             .map(|(id, name)| MenuItem::with_id(app, format!("skin:{id}"), name, true, None::<&str>));
             let [a, b, c, d, e, f, g] = skins;

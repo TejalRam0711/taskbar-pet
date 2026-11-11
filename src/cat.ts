@@ -165,7 +165,7 @@ export function createCat(el: HTMLElement, mover: Mover, skin: SkinId = 'black')
     }
     lcdFrame();
   }, 400);
-  // The Tamagotchi skin draws each pose as dots (skins.ts): its frames flip on the tick, and change pose as soon
+  // The LCD pet skin draws each pose as dots (skins.ts): its frames flip on the tick, and change pose as soon
   // as the state classes do.
   const lcdFrame = () => svg.classList.contains('skin-lcd') && showLcdFrame(svg, n);
   const poses = new MutationObserver(lcdFrame);
